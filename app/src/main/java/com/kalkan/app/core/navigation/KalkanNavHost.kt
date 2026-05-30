@@ -56,6 +56,7 @@ import com.kalkan.app.ui.screens.admin.CreateAnnouncementScreen
 import com.kalkan.app.viewmodel.AdminDashboardViewModel
 import com.kalkan.app.viewmodel.AnnouncementsViewModel
 import com.kalkan.app.viewmodel.AuthViewModel
+import com.kalkan.app.viewmodel.EmergencyContactsViewModel
 import com.kalkan.app.viewmodel.SafetyStatusViewModel
 import androidx.compose.runtime.collectAsState
 
@@ -217,7 +218,26 @@ fun KalkanNavHost() {
             }
             composable(KalkanRoute.Earthquakes.route) { EarthquakesScreen() }
             composable(KalkanRoute.Map.route) { MapScreen() }
-            composable(KalkanRoute.Family.route) { FamilyScreen() }
+            composable(KalkanRoute.Family.route) {
+                val emergencyContactsViewModel: EmergencyContactsViewModel = hiltViewModel()
+                val contactsState by emergencyContactsViewModel.uiState.collectAsState()
+                val userUid = authState.user?.uid
+                LaunchedEffect(userUid) {
+                    emergencyContactsViewModel.startObserving(userUid)
+                }
+                FamilyScreen(
+                    contactsState = contactsState,
+                    onAddContactClick = emergencyContactsViewModel::showAddSheet,
+                    onDeleteContact = emergencyContactsViewModel::deleteContact,
+                    onDismissAddSheet = emergencyContactsViewModel::dismissAddSheet,
+                    onNameChange = emergencyContactsViewModel::onNameChange,
+                    onPhoneChange = emergencyContactsViewModel::onPhoneChange,
+                    onRelationChange = emergencyContactsViewModel::onRelationChange,
+                    onPrimaryChange = emergencyContactsViewModel::onPrimaryChange,
+                    onSaveContact = emergencyContactsViewModel::saveContact,
+                    onDismissMessage = emergencyContactsViewModel::clearSnackbarMessage,
+                )
+            }
             composable(KalkanRoute.Profile.route) {
                 ProfileScreen(
                     user = authState.user,
