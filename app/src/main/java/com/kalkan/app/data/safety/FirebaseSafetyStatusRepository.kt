@@ -42,6 +42,28 @@ class FirebaseSafetyStatusRepository @Inject constructor(
             createdAt = createdAt,
         )
         document.set(status.toFirestoreMap()).await()
+
+        // 2. Eğer users/{uid}.familyGroupId varsa, family_groups/{groupId}/members/{uid} dökümanı güncellensin.
+        try {
+            val userSnapshot = firestore.collection("users").document(uid).get().await()
+            val familyGroupId = userSnapshot.getString("familyGroupId")
+            if (!familyGroupId.isNullOrBlank()) {
+                val memberRef = firestore.collection("family_groups").document(familyGroupId)
+                    .collection("members").document(uid)
+                memberRef.update(
+                    mapOf(
+                        "lastStatusType" to statusType.value,
+                        "lastStatusMessage" to statusType.defaultMessage,
+                        "lastStatusLatitude" to location?.latitude,
+                        "lastStatusLongitude" to location?.longitude,
+                        "lastStatusAt" to createdAt
+                    )
+                ).await()
+            }
+        } catch (_: Exception) {
+            // Aile grubu güncellenemese de ana durum kaydetme akışı bozulmasın.
+        }
+
         status
     }
 

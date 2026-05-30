@@ -12,6 +12,8 @@ data class AppUser(
     val fcmToken: String? = null,
     val notificationPermissionGranted: Boolean = false,
     val lastFcmTokenUpdatedAt: Long = 0L,
+    val familyGroupId: String? = null,
+    val familyInviteCode: String? = null,
 ) {
     val isGuest: Boolean
         get() = email.isNullOrBlank()

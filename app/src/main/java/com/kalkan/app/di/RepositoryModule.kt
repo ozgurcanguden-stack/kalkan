@@ -16,6 +16,8 @@ import com.kalkan.app.data.repository.AfadEarthquakeRepository
 import com.kalkan.app.data.repository.FirebaseEmergencyRepository
 import com.kalkan.app.data.user.FirebaseUserRepository
 import com.kalkan.app.data.user.UserRepository
+import com.kalkan.app.data.family.FamilyRepository
+import com.kalkan.app.data.family.FirebaseFamilyRepository
 import com.kalkan.app.domain.repository.EarthquakeRepository
 import com.kalkan.app.domain.repository.EmergencyRepository
 import dagger.Binds
@@ -64,4 +66,10 @@ abstract class RepositoryModule {
     abstract fun bindEmergencyContactRepository(
         repository: FirebaseEmergencyContactRepository,
     ): EmergencyContactRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFamilyRepository(
+        repository: FirebaseFamilyRepository,
+    ): FamilyRepository
 }

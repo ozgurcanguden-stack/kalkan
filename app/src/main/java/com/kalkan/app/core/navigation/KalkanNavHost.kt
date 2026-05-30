@@ -58,6 +58,7 @@ import com.kalkan.app.viewmodel.AnnouncementsViewModel
 import com.kalkan.app.viewmodel.AuthViewModel
 import com.kalkan.app.viewmodel.EmergencyContactsViewModel
 import com.kalkan.app.viewmodel.SafetyStatusViewModel
+import com.kalkan.app.viewmodel.FamilyGroupViewModel
 import androidx.compose.runtime.collectAsState
 
 private val bottomRoutes = listOf(
@@ -220,13 +221,24 @@ fun KalkanNavHost() {
             composable(KalkanRoute.Map.route) { MapScreen() }
             composable(KalkanRoute.Family.route) {
                 val emergencyContactsViewModel: EmergencyContactsViewModel = hiltViewModel()
+                val familyGroupViewModel: FamilyGroupViewModel = hiltViewModel()
                 val contactsState by emergencyContactsViewModel.uiState.collectAsState()
-                val userUid = authState.user?.uid
+                val familyGroupState by familyGroupViewModel.uiState.collectAsState()
+                val user = authState.user
+                val userUid = user?.uid
+
                 LaunchedEffect(userUid) {
                     emergencyContactsViewModel.startObserving(userUid)
                 }
+
+                LaunchedEffect(user) {
+                    familyGroupViewModel.loadFamilyGroup(user)
+                }
+
                 FamilyScreen(
                     contactsState = contactsState,
+                    familyGroupState = familyGroupState,
+                    currentUserUid = userUid.orEmpty(),
                     onAddContactClick = emergencyContactsViewModel::showAddSheet,
                     onDeleteContact = emergencyContactsViewModel::deleteContact,
                     onDismissAddSheet = emergencyContactsViewModel::dismissAddSheet,
@@ -237,6 +249,12 @@ fun KalkanNavHost() {
                     onSaveContact = emergencyContactsViewModel::saveContact,
                     onDismissMessage = emergencyContactsViewModel::clearSnackbarMessage,
                     onShowActionMessage = emergencyContactsViewModel::showActionMessage,
+                    onCreateFamilyGroup = familyGroupViewModel::createFamilyGroup,
+                    onJoinFamilyGroup = familyGroupViewModel::joinFamilyGroup,
+                    onClearFamilyError = familyGroupViewModel::clearError,
+                    onClearFamilySuccessMessage = familyGroupViewModel::clearActionSuccessMessage,
+                    onLeaveFamilyGroup = familyGroupViewModel::leaveFamilyGroup,
+                    onDeleteFamilyGroup = familyGroupViewModel::deleteFamilyGroup,
                 )
             }
             composable(KalkanRoute.Profile.route) {

@@ -64,6 +64,8 @@ class FirebaseUserRepository @Inject constructor(
         "fcmToken" to fcmToken,
         "notificationPermissionGranted" to notificationPermissionGranted,
         "lastFcmTokenUpdatedAt" to lastFcmTokenUpdatedAt,
+        "familyGroupId" to familyGroupId,
+        "familyInviteCode" to familyInviteCode,
     )
 
     private fun DocumentSnapshot.toAppUser(): AppUser? {
@@ -81,6 +83,8 @@ class FirebaseUserRepository @Inject constructor(
             fcmToken = getString("fcmToken"),
             notificationPermissionGranted = getBoolean("notificationPermissionGranted") == true,
             lastFcmTokenUpdatedAt = getLong("lastFcmTokenUpdatedAt") ?: 0L,
+            familyGroupId = getString("familyGroupId"),
+            familyInviteCode = getString("familyInviteCode"),
         )
     }
 }
