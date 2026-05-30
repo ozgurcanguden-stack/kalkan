@@ -40,7 +40,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit =
         Retrofit.Builder()
-            .baseUrl("https://deprem.afad.gov.tr/")
+            .baseUrl("https://servisnet.afad.gov.tr/apigateway/deprem/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

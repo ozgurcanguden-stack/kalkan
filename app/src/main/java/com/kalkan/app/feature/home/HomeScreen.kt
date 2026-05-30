@@ -73,6 +73,8 @@ import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanGreen
 import com.kalkan.app.core.design.theme.KalkanRed
 import com.kalkan.app.core.design.theme.KalkanTextMuted
+import com.kalkan.app.feature.earthquakes.EarthquakeLastUpdatedLabel
+import com.kalkan.app.feature.earthquakes.formatEarthquakeDate
 import com.kalkan.app.model.SafetyStatusType
 import com.kalkan.app.ui.components.AnnouncementCard
 import com.kalkan.app.ui.components.AppTopNotificationCenter
@@ -546,6 +548,10 @@ private fun RecentEarthquakesCard(
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold,
         )
+        EarthquakeLastUpdatedLabel(
+            lastUpdatedAt = state.lastUpdatedAt,
+            modifier = Modifier.padding(top = 2.dp, bottom = 4.dp),
+        )
         when (state) {
             is com.kalkan.app.feature.earthquakes.EarthquakeUiState.Loading -> {
                 Box(
@@ -571,7 +577,7 @@ private fun RecentEarthquakesCard(
                             EarthquakeItem(
                                 magnitude = String.format(Locale("tr", "TR"), "%.1f", eq.magnitude),
                                 location = eq.location.ifBlank { "Konum bilgisi yok" },
-                                detail = "${eq.dateTime.formatDate()} • Derinlik: ${eq.depth} km",
+                                detail = "${eq.dateTime.formatEarthquakeDate()} • Derinlik: ${eq.depth} km",
                                 badgeColor = if (eq.magnitude >= 5.0) ErrorContainer else if (eq.magnitude >= 4.0) TertiaryFixed else SurfaceVariant,
                                 badgeTextColor = if (eq.magnitude >= 5.0) OnErrorContainer else if (eq.magnitude >= 4.0) OnTertiaryFixed else Color(0xFF0F172A),
                             )
@@ -596,7 +602,7 @@ private fun RecentEarthquakesCard(
                         EarthquakeItem(
                             magnitude = String.format(Locale("tr", "TR"), "%.1f", eq.magnitude),
                             location = eq.location.ifBlank { "Konum bilgisi yok" },
-                            detail = "${eq.dateTime.formatDate()} • Derinlik: ${eq.depth} km",
+                            detail = "${eq.dateTime.formatEarthquakeDate()} • Derinlik: ${eq.depth} km",
                             badgeColor = if (eq.magnitude >= 5.0) ErrorContainer else if (eq.magnitude >= 4.0) TertiaryFixed else SurfaceVariant,
                             badgeTextColor = if (eq.magnitude >= 5.0) OnErrorContainer else if (eq.magnitude >= 4.0) OnTertiaryFixed else Color(0xFF0F172A),
                         )
@@ -665,12 +671,6 @@ private fun EarthquakeItem(
             )
         }
     }
-}
-
-private fun Long.formatDate(): String {
-    if (this == 0L) return "Tarih yok"
-    val formatter = SimpleDateFormat("dd MMM HH:mm", Locale("tr", "TR"))
-    return formatter.format(Date(this))
 }
 
 @Composable

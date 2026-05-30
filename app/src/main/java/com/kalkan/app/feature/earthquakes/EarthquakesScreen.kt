@@ -63,8 +63,6 @@ import com.kalkan.app.core.design.theme.KalkanBlue
 import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanTextMuted
 import com.kalkan.app.domain.model.Earthquake
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 private val SurfaceVariant = Color(0xFFE0E3E5)
@@ -83,7 +81,7 @@ fun EarthquakesScreen(
     val isRefreshing = when (val state = uiState) {
         is EarthquakeUiState.Success -> state.isRefreshing
         is EarthquakeUiState.Error -> state.isRefreshing
-        EarthquakeUiState.Empty,
+        is EarthquakeUiState.Empty,
         EarthquakeUiState.Loading,
         -> false
     }
@@ -107,6 +105,7 @@ fun EarthquakesScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             EarthquakesTopBar(onRefreshClick = viewModel::refresh)
+            EarthquakeLastUpdatedLabel(lastUpdatedAt = uiState.lastUpdatedAt)
             SearchAndFilter()
             QuickFilters(
                 selectedFilter = selectedFilter,
@@ -252,7 +251,7 @@ private fun EarthquakeContent(
 ) {
     when (uiState) {
         EarthquakeUiState.Loading -> LoadingState()
-        EarthquakeUiState.Empty -> EmptyState(onRetry = onRetry)
+        is EarthquakeUiState.Empty -> EmptyState(onRetry = onRetry)
         is EarthquakeUiState.Success -> EarthquakeList(earthquakes = uiState.earthquakes)
         is EarthquakeUiState.Error -> ErrorState(uiState = uiState, onRetry = onRetry)
     }
@@ -397,7 +396,7 @@ private fun EarthquakeCard(earthquake: Earthquake) {
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    DetailText(icon = Icons.Rounded.Schedule, text = earthquake.dateTime.formatDate())
+                    DetailText(icon = Icons.Rounded.Schedule, text = earthquake.dateTime.formatEarthquakeDate())
                     Box(
                         modifier = Modifier
                             .size(4.dp)
@@ -432,9 +431,3 @@ private fun Earthquake.badgeColors(): Pair<Color, Color> =
         magnitude >= 4.0 -> TertiaryFixed to OnTertiaryFixed
         else -> SurfaceVariant to Color(0xFF0F172A)
     }
-
-private fun Long.formatDate(): String {
-    if (this == 0L) return "Tarih yok"
-    val formatter = SimpleDateFormat("dd MMM HH:mm", Locale("tr", "TR"))
-    return formatter.format(Date(this))
-}

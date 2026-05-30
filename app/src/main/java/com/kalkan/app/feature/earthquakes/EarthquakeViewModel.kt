@@ -23,9 +23,11 @@ class EarthquakeViewModel @Inject constructor(
     val selectedFilter: StateFlow<EarthquakeFilter> = _selectedFilter.asStateFlow()
 
     private var latestEarthquakes: List<Earthquake> = emptyList()
+    private var lastUpdatedAt: Long? = null
 
     init {
         observeCache()
+        observeLastUpdatedAt()
         refresh()
     }
 
@@ -46,6 +48,7 @@ class EarthquakeViewModel @Inject constructor(
                     _uiState.value = EarthquakeUiState.Error(
                         message = error.localizedMessage ?: "Deprem verileri alinamadi.",
                         cachedEarthquakes = latestEarthquakes.applyCurrentFilter(),
+                        lastUpdatedAt = lastUpdatedAt,
                     )
                 }
         }
@@ -67,12 +70,24 @@ class EarthquakeViewModel @Inject constructor(
         }
     }
 
+    private fun observeLastUpdatedAt() {
+        viewModelScope.launch {
+            repository.observeLastUpdatedAt().collect { updatedAt ->
+                lastUpdatedAt = updatedAt
+                publishFilteredState()
+            }
+        }
+    }
+
     private fun publishFilteredState() {
         val filtered = latestEarthquakes.applyCurrentFilter()
         _uiState.value = if (filtered.isEmpty()) {
-            EarthquakeUiState.Empty
+            EarthquakeUiState.Empty(lastUpdatedAt = lastUpdatedAt)
         } else {
-            EarthquakeUiState.Success(earthquakes = filtered)
+            EarthquakeUiState.Success(
+                earthquakes = filtered,
+                lastUpdatedAt = lastUpdatedAt,
+            )
         }
     }
 
@@ -92,8 +107,8 @@ private fun MutableStateFlow<EarthquakeUiState>.updateRefreshing(isRefreshing: B
         when (state) {
             is EarthquakeUiState.Success -> state.copy(isRefreshing = isRefreshing)
             is EarthquakeUiState.Error -> state.copy(isRefreshing = isRefreshing)
-            EarthquakeUiState.Empty,
-            EarthquakeUiState.Loading,
+            is EarthquakeUiState.Loading,
+            is EarthquakeUiState.Empty,
             -> state
         }
     }
@@ -107,15 +122,26 @@ enum class EarthquakeFilter(val label: String) {
 }
 
 sealed interface EarthquakeUiState {
-    data object Loading : EarthquakeUiState
-    data object Empty : EarthquakeUiState
+    val lastUpdatedAt: Long?
+
+    data object Loading : EarthquakeUiState {
+        override val lastUpdatedAt: Long? = null
+    }
+
+    data class Empty(
+        override val lastUpdatedAt: Long? = null,
+    ) : EarthquakeUiState
+
     data class Success(
         val earthquakes: List<Earthquake>,
         val isRefreshing: Boolean = false,
+        override val lastUpdatedAt: Long? = null,
     ) : EarthquakeUiState
+
     data class Error(
         val message: String,
         val cachedEarthquakes: List<Earthquake> = emptyList(),
         val isRefreshing: Boolean = false,
+        override val lastUpdatedAt: Long? = null,
     ) : EarthquakeUiState
 }
