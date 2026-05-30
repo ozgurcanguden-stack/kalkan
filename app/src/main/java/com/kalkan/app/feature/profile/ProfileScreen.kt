@@ -137,6 +137,10 @@ fun ProfileScreen(
                                 isDark = isDark,
                             )
 
+                            if (hasAdminAccess) {
+                                AdminPanelEntry(onAdminPanelClick = onAdminPanelClick)
+                            }
+
                             StitchSettingsSection(
                                 title = "Hesap ve Güvenlik",
                                 cardBg = cardBg,
@@ -218,63 +222,68 @@ fun ProfileScreen(
                         }
 
                         ProfileSubScreen.HESAP_AYARLARI -> {
-                            SubScreenTopBar(title = "Hesap Bilgileri") {
-                                activeSubScreen = ProfileSubScreen.MAIN
-                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                SubScreenTopBar(title = "Hesap Bilgileri") {
+                                    activeSubScreen = ProfileSubScreen.MAIN
+                                }
 
-                            if (hasAdminAccess) {
-                                AdminPanelEntry(onAdminPanelClick = onAdminPanelClick)
-                            }
+                                AccountDetailsCard(
+                                    user = user,
+                                    uiState = uiState,
+                                    lastBackupTime = lastBackupTime,
+                                    onBackupScheduleClick = {
+                                        if (user?.isGuest == false) showBackupScheduleDialog = true
+                                    },
+                                )
 
-                            AccountDetailsCard(
-                                user = user,
-                                uiState = uiState,
-                                lastBackupTime = lastBackupTime,
-                                onBackupScheduleClick = {
-                                    if (user?.isGuest == false) showBackupScheduleDialog = true
-                                },
-                            )
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    if (user?.isGuest == false) {
+                                        Button(
+                                            onClick = onBackupClick,
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD0E3F5)),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentPadding = PaddingValues(vertical = 10.dp),
+                                        ) {
+                                            if (uiState.isBackupLoading) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(18.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = KalkanBlue,
+                                                )
+                                            } else {
+                                                Text(
+                                                    "Şimdi Yedekle",
+                                                    color = KalkanBlue,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 14.sp,
+                                                )
+                                            }
+                                        }
+                                    }
 
-                            if (user?.isGuest == false) {
-                                Button(
-                                    onClick = onBackupClick,
-                                    shape = RoundedCornerShape(24.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD0E3F5)),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentPadding = PaddingValues(vertical = 14.dp)
-                                ) {
-                                    if (uiState.isBackupLoading) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(20.dp),
-                                            strokeWidth = 2.dp,
-                                            color = KalkanBlue
-                                        )
-                                    } else {
-                                        Text("Şimdi Yedekle", color = KalkanBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    OutlinedButton(
+                                        onClick = onSignOut,
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.6f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KalkanBlue),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentPadding = PaddingValues(vertical = 10.dp),
+                                    ) {
+                                        Text("Çıkış Yap", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = { showDeleteAccountDialog1 = true },
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, KalkanRed.copy(alpha = 0.5f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KalkanRed),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentPadding = PaddingValues(vertical = 10.dp),
+                                    ) {
+                                        Text("Hesabımı Sil", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                     }
                                 }
-                            }
-
-                            OutlinedButton(
-                                onClick = onSignOut,
-                                shape = RoundedCornerShape(24.dp),
-                                border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.6f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = KalkanBlue),
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(vertical = 14.dp)
-                            ) {
-                                Text("Çıkış Yap", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            }
-
-                            OutlinedButton(
-                                onClick = { showDeleteAccountDialog1 = true },
-                                shape = RoundedCornerShape(24.dp),
-                                border = BorderStroke(1.dp, KalkanRed.copy(alpha = 0.5f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = KalkanRed),
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(vertical = 14.dp)
-                            ) {
-                                Text("Hesabımı Sil", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                         }
 
@@ -898,7 +907,13 @@ private fun AccountDetailsCard(
     lastBackupTime: String,
     onBackupScheduleClick: () -> Unit,
 ) {
-    val cardBg = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface else Color(0xFFF3F8FC)
+    val isDark = isSystemInDarkTheme()
+    val cardBg = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF3F8FC)
+    val innerCardBg = if (isDark) {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    } else {
+        Color(0xFFE8F0F8)
+    }
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -954,7 +969,7 @@ private fun AccountDetailsCard(
 
             Card(
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = innerCardBg),
                 border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.35f)),
                 modifier = Modifier
                     .fillMaxWidth()

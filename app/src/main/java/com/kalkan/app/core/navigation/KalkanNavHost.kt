@@ -9,6 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Home
@@ -78,6 +82,19 @@ private val bottomRoutes = listOf(
     BottomNavItem(KalkanRoute.Profile, Icons.Rounded.Person, Icons.Outlined.Person),
 )
 
+private val routesWithoutBottomBar = setOf(
+    KalkanRoute.AddEmergencyContact.route,
+    KalkanRoute.EmergencyProfileView.route,
+    KalkanRoute.EmergencyProfileEdit.route,
+    KalkanRoute.AdminDashboard.route,
+    KalkanRoute.CreateAnnouncement.route,
+)
+
+private fun shouldShowBottomBar(route: String?): Boolean {
+    if (route == null) return true
+    return route !in routesWithoutBottomBar && !route.startsWith("announcement_detail")
+}
+
 @Composable
 fun KalkanNavHost(
     notificationNavigationTarget: NotificationNavigationTarget? = null,
@@ -145,39 +162,44 @@ fun KalkanNavHost(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing.only(
+            WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
+        ),
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = NavigationBarDefaults.Elevation,
-            ) {
-                bottomRoutes.forEach { item ->
-                    val selected = currentRoute == item.route.route
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(item.route.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+            if (shouldShowBottomBar(currentRoute)) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = NavigationBarDefaults.Elevation,
+                ) {
+                    bottomRoutes.forEach { item ->
+                        val selected = currentRoute == item.route.route
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                navController.navigate(item.route.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        label = { Text(text = item.route.title) },
-                        icon = {
-                            Icon(
-                                imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                                contentDescription = item.route.title,
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.secondary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                        ),
-                    )
+                            },
+                            label = { Text(text = item.route.title) },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                    contentDescription = item.route.title,
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.secondary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                            ),
+                        )
+                    }
                 }
             }
         },

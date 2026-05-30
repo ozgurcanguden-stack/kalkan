@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -19,7 +19,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,7 +31,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -128,6 +129,35 @@ fun EmergencyProfileViewScreen(
                     EmergencyProfileTopBar(
                         title = "Acil Durum Kartı",
                         onBackClick = onBackClick,
+                        actions = {
+                            IconButton(onClick = onEditClick) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = "Düzenle",
+                                    tint = KalkanBlue,
+                                )
+                            }
+                            if (uiState.profile?.hasAnyData == true) {
+                                IconButton(
+                                    onClick = { showDeleteDialog = true },
+                                    enabled = !uiState.isDeleting,
+                                ) {
+                                    if (uiState.isDeleting) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp,
+                                            color = KalkanRed,
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Delete,
+                                            contentDescription = "Sil",
+                                            tint = KalkanRed,
+                                        )
+                                    }
+                                }
+                            }
+                        },
                     )
 
                     Card(
@@ -194,48 +224,27 @@ fun EmergencyProfileViewScreen(
                         border = BorderStroke(1.dp, KalkanBlue.copy(alpha = 0.2f)),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(
-                            text = EMERGENCY_PROFILE_PRIVACY_NOTICE,
+                        Row(
                             modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 18.sp,
-                        )
-                    }
-
-                    Button(
-                        onClick = onEditClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = KalkanBlue),
-                    ) {
-                        Icon(Icons.Rounded.Edit, contentDescription = null)
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text("Düzenle", fontWeight = FontWeight.Bold)
-                    }
-
-                    if (profile?.hasAnyData == true) {
-                        OutlinedButton(
-                            onClick = { showDeleteDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !uiState.isDeleting,
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, KalkanRed.copy(alpha = 0.5f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = KalkanRed),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            if (uiState.isDeleting) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = KalkanRed,
-                                )
-                            } else {
-                                Text("Acil Durum Kartını Sil", fontWeight = FontWeight.Bold)
-                            }
+                            Icon(
+                                imageVector = Icons.Rounded.WarningAmber,
+                                contentDescription = null,
+                                tint = KalkanBlue,
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .align(Alignment.Top),
+                            )
+                            Text(
+                                text = EMERGENCY_PROFILE_PRIVACY_NOTICE,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = 18.sp,
+                                modifier = Modifier.weight(1f),
+                            )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }
@@ -314,13 +323,13 @@ private fun ProfileInfoRow(label: String, value: String) {
 internal fun EmergencyProfileTopBar(
     title: String,
     onBackClick: () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         IconButton(onClick = onBackClick, modifier = Modifier.size(36.dp)) {
             Icon(
@@ -334,7 +343,9 @@ internal fun EmergencyProfileTopBar(
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f),
         )
+        actions()
     }
 }
 
