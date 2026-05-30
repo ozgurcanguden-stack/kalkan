@@ -108,6 +108,7 @@ async function sendAnnouncementToTokens(
           priority: androidPriority,
           notification: {
             channelId: "kalkan_alerts",
+            clickAction: "com.kalkan.app.NOTIFICATION_CLICK",
           },
         },
       });
@@ -182,12 +183,14 @@ async function sendSafetyAlertToTokens(
           type: "family_safety_alert",
           statusId,
           sourceUid,
+          senderUid: sourceUid,
           statusType,
         },
         android: {
           priority: "high",
           notification: {
             channelId: "kalkan_alerts",
+            clickAction: "com.kalkan.app.NOTIFICATION_CLICK",
           },
         },
       });

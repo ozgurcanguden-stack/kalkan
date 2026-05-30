@@ -6,11 +6,16 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -23,6 +28,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -71,7 +77,8 @@ fun AppTopNotificationHost() {
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         visibleNotifications.forEach { notification ->
@@ -81,19 +88,40 @@ fun AppTopNotificationHost() {
                 exit = slideOutVertically { -it } + fadeOut(),
             ) {
                 Surface(
-                    color = Color(0xFF15803D),
-                    shape = RoundedCornerShape(14.dp),
-                    shadowElevation = 8.dp,
+                    modifier = Modifier
+                        .widthIn(max = 420.dp)
+                        .defaultMinSize(minWidth = 260.dp),
+                    color = Color(0xFF166534),
+                    shape = RoundedCornerShape(18.dp),
+                    shadowElevation = 12.dp,
+                    tonalElevation = 2.dp,
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = Color.White.copy(alpha = 0.22f),
+                    ),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.CheckCircle,
-                            contentDescription = null,
-                            tint = Color.White,
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(34.dp),
+                                color = Color.White.copy(alpha = 0.16f),
+                                shape = CircleShape,
+                            ) {}
+                            Icon(
+                                imageVector = Icons.Rounded.CheckCircle,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
                         Text(
                             text = notification.message,
                             color = Color.White,

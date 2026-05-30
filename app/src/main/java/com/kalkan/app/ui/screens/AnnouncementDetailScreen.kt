@@ -45,12 +45,19 @@ fun AnnouncementDetailScreen(
     isGuest: Boolean,
     isRegistered: Boolean,
     onBackClick: () -> Unit,
+    onDetailUnavailable: () -> Unit,
     viewModel: AnnouncementDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(isGuest, isRegistered) {
         viewModel.loadAnnouncement(isGuest = isGuest, isRegistered = isRegistered)
+    }
+
+    LaunchedEffect(uiState) {
+        if (uiState is AnnouncementDetailUiState.Error) {
+            onDetailUnavailable()
+        }
     }
 
     Column(

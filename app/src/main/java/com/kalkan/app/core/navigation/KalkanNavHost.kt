@@ -53,6 +53,7 @@ import com.kalkan.app.ui.screens.LoginScreen
 import com.kalkan.app.ui.screens.AnnouncementDetailScreen
 import com.kalkan.app.feature.earthquakes.EarthquakeViewModel
 import com.kalkan.app.core.notification.NotificationHelper
+import com.kalkan.app.core.notification.NotificationNavigationTarget
 import com.kalkan.app.viewmodel.SettingsViewModel
 import com.kalkan.app.ui.screens.admin.AdminDashboardScreen
 import com.kalkan.app.ui.screens.admin.CreateAnnouncementScreen
@@ -74,7 +75,10 @@ private val bottomRoutes = listOf(
 )
 
 @Composable
-fun KalkanNavHost() {
+fun KalkanNavHost(
+    notificationNavigationTarget: NotificationNavigationTarget? = null,
+    onNotificationNavigationHandled: () -> Unit = {},
+) {
     val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -115,6 +119,26 @@ fun KalkanNavHost() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+
+    LaunchedEffect(notificationNavigationTarget, authState.isAuthenticated) {
+        if (!authState.isAuthenticated || notificationNavigationTarget == null) return@LaunchedEffect
+
+        val route = when (notificationNavigationTarget) {
+            NotificationNavigationTarget.Home -> KalkanRoute.Home.route
+            NotificationNavigationTarget.Family -> KalkanRoute.Family.route
+            is NotificationNavigationTarget.AnnouncementDetail ->
+                KalkanRoute.AnnouncementDetail.createRoute(notificationNavigationTarget.announcementId)
+        }
+
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = route == KalkanRoute.Home.route || route == KalkanRoute.Family.route
+        }
+        onNotificationNavigationHandled()
+    }
 
     Scaffold(
         bottomBar = {
@@ -257,6 +281,15 @@ fun KalkanNavHost() {
                     isGuest = isGuest,
                     isRegistered = isRegistered,
                     onBackClick = { navController.popBackStack() },
+                    onDetailUnavailable = {
+                        navController.navigate(KalkanRoute.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                 )
             }
             composable(KalkanRoute.Earthquakes.route) { EarthquakesScreen() }

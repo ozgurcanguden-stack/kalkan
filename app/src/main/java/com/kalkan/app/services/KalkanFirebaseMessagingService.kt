@@ -53,6 +53,7 @@ class KalkanFirebaseMessagingService : FirebaseMessagingService() {
             context = this,
             title = title,
             body = body,
+            data = message.data,
         )
     }
 
