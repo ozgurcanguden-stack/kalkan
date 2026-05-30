@@ -5,5 +5,5 @@ import kotlinx.coroutines.flow.Flow
 
 interface EarthquakeRepository {
     fun observeRecentEarthquakes(): Flow<List<Earthquake>>
-    suspend fun refreshFromAfad(): Result<Unit>
+    suspend fun refreshFromAfad(): Result<List<Earthquake>>
 }

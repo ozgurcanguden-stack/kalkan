@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.compose.material)
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.extended)
     debugImplementation(libs.compose.ui.tooling)
@@ -58,6 +59,9 @@ dependencies {
     implementation(libs.google.services.location)
     implementation(libs.google.maps.compose)
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.retrofit.core)
+    implementation(libs.retrofit.gson)
+    implementation(libs.okhttp.logging)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
