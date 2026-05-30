@@ -14,6 +14,12 @@ interface AnnouncementData {
   status?: string;
 }
 
+interface SafetyStatusData {
+  uid?: string;
+  displayName?: string;
+  statusType?: string;
+}
+
 const FCM_BATCH_SIZE = 500;
 
 function isGuestUser(email: unknown): boolean {
@@ -132,6 +138,75 @@ async function sendAnnouncementToTokens(
   return { successCount, failureCount };
 }
 
+async function collectFamilyTokens(familyGroupId: string, sourceUid: string): Promise<string[]> {
+  const usersSnapshot = await admin.firestore()
+    .collection("users")
+    .where("familyGroupId", "==", familyGroupId)
+    .get();
+  const tokens = new Set<string>();
+
+  usersSnapshot.forEach((doc) => {
+    if (doc.id === sourceUid) {
+      return;
+    }
+
+    const rawToken = doc.data().fcmToken;
+    if (typeof rawToken === "string" && rawToken.trim()) {
+      tokens.add(rawToken.trim());
+    }
+  });
+
+  return Array.from(tokens);
+}
+
+async function sendSafetyAlertToTokens(
+  tokens: string[],
+  title: string,
+  body: string,
+  statusId: string,
+  sourceUid: string,
+  statusType: string,
+): Promise<{ successCount: number; failureCount: number }> {
+  const messaging = admin.messaging();
+  let successCount = 0;
+  let failureCount = 0;
+
+  for (let offset = 0; offset < tokens.length; offset += FCM_BATCH_SIZE) {
+    const batch = tokens.slice(offset, offset + FCM_BATCH_SIZE);
+
+    try {
+      const response = await messaging.sendEachForMulticast({
+        tokens: batch,
+        notification: { title, body },
+        data: {
+          type: "family_safety_alert",
+          statusId,
+          sourceUid,
+          statusType,
+        },
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "kalkan_alerts",
+          },
+        },
+      });
+
+      successCount += response.successCount;
+      failureCount += response.failureCount;
+    } catch (error) {
+      failureCount += batch.length;
+      logger.error("Family safety alert multicast batch failed", {
+        statusId,
+        batchSize: batch.length,
+        error,
+      });
+    }
+  }
+
+  return { successCount, failureCount };
+}
+
 export const sendAnnouncementPush = onDocumentCreated(
   "announcements/{announcementId}",
   async (event) => {
@@ -197,6 +272,71 @@ export const sendAnnouncementPush = onDocumentCreated(
       announcementId,
       targetAudience,
       tokenCount,
+      successCount,
+      failureCount,
+    });
+  },
+);
+
+export const sendFamilySafetyAlertPush = onDocumentCreated(
+  "safety_status/{statusId}",
+  async (event) => {
+    const statusId = event.params.statusId;
+    const snapshot = event.data;
+
+    if (!snapshot) {
+      logger.warn("Safety status snapshot missing", { statusId });
+      return;
+    }
+
+    const data = snapshot.data() as SafetyStatusData;
+    const sourceUid = (data.uid ?? "").trim();
+    const statusType = (data.statusType ?? "").trim();
+
+    if (!sourceUid || (statusType !== "sos" && statusType !== "need_help")) {
+      return;
+    }
+
+    const userSnapshot = await admin.firestore().collection("users").doc(sourceUid).get();
+    const familyGroupId = userSnapshot.get("familyGroupId");
+    if (typeof familyGroupId !== "string" || !familyGroupId.trim()) {
+      logger.info("Family safety alert skipped: user has no family group", {
+        statusId,
+        sourceUid,
+      });
+      return;
+    }
+
+    const displayName = (data.displayName ?? "").trim() || "Bir aile üyeniz";
+    const title = statusType === "sos" ? "ACİL SOS" : "YARDIM İSTİYOR";
+    const body = statusType === "sos"
+      ? `${displayName} acil SOS çağrısı gönderdi.`
+      : `${displayName} yardım istiyor.`;
+    const tokens = await collectFamilyTokens(familyGroupId, sourceUid);
+
+    if (tokens.length === 0) {
+      logger.info("Family safety alert skipped: no eligible tokens", {
+        statusId,
+        sourceUid,
+        familyGroupId,
+      });
+      return;
+    }
+
+    const { successCount, failureCount } = await sendSafetyAlertToTokens(
+      tokens,
+      title,
+      body,
+      statusId,
+      sourceUid,
+      statusType,
+    );
+
+    logger.info("Family safety alert push completed", {
+      statusId,
+      sourceUid,
+      familyGroupId,
+      tokenCount: tokens.length,
       successCount,
       failureCount,
     });

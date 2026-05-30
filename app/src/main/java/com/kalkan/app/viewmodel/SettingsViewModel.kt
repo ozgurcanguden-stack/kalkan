@@ -56,6 +56,7 @@ class SettingsViewModel @Inject constructor(
                         it.copy(
                             backupFrequency = frequency,
                             lastSyncAt = System.currentTimeMillis(),
+                            successMessage = "Otomatik yedekleme ayarı güncellendi.",
                         )
                     }
                 }

@@ -88,7 +88,10 @@ import com.kalkan.app.model.FamilyMember
 import com.kalkan.app.model.FamilyRole
 import com.kalkan.app.model.SafetyStatusType
 import com.kalkan.app.ui.components.EmergencyContactCard
+import com.kalkan.app.ui.components.AppTopNotificationCenter
 import com.kalkan.app.util.EmergencyIntentHelper
+import com.kalkan.app.util.MapIntentHelper
+import com.kalkan.app.util.TimeAgoUtils
 import com.kalkan.app.util.WhatsAppOpenResult
 import com.kalkan.app.viewmodel.AddEmergencyContactFormState
 import com.kalkan.app.viewmodel.EmergencyContactsUiState
@@ -156,7 +159,7 @@ fun FamilyScreen(
 
     LaunchedEffect(familyGroupState.actionSuccessMessage) {
         val message = familyGroupState.actionSuccessMessage ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
+        AppTopNotificationCenter.showSuccess(message)
         onClearFamilySuccessMessage()
     }
 
@@ -210,6 +213,11 @@ fun FamilyScreen(
                         },
                         onDeleteGroup = { groupId ->
                             familyGroupToDeleteId = groupId
+                        },
+                        onOpenLocation = { latitude, longitude ->
+                            if (!MapIntentHelper.openLocation(context, latitude, longitude)) {
+                                onShowActionMessage("Konum açılamadı.")
+                            }
                         }
                     )
                 }
@@ -712,6 +720,7 @@ private fun FamilyMembersSection(
     isActionLoading: Boolean,
     onLeaveGroup: (String) -> Unit,
     onDeleteGroup: (String) -> Unit,
+    onOpenLocation: (Double, Double) -> Unit,
 ) {
     val isOwner = familyGroup?.ownerUid == currentUserUid
 
@@ -775,31 +784,26 @@ private fun FamilyMembersSection(
             )
         } else {
             members.forEach { member ->
-                FamilyMemberCard(member = member)
+                FamilyMemberCard(member = member, onOpenLocation = onOpenLocation)
             }
         }
     }
 }
 
 @Composable
-private fun FamilyMemberCard(member: FamilyMember) {
-    val relativeTime = if (member.lastStatusAt != null && member.lastStatusAt > 0) {
-        android.text.format.DateUtils.getRelativeTimeSpanString(
-            member.lastStatusAt,
-            System.currentTimeMillis(),
-            android.text.format.DateUtils.MINUTE_IN_MILLIS
-        ).toString()
-    } else {
-        ""
-    }
+private fun FamilyMemberCard(
+    member: FamilyMember,
+    onOpenLocation: (Double, Double) -> Unit,
+) {
+    val relativeTime = TimeAgoUtils.format(member.lastStatusAt)
 
     val statusType = SafetyStatusType.from(member.lastStatusType)
 
     val statusText = when (statusType) {
-        SafetyStatusType.SAFE -> "Güvende"
-        SafetyStatusType.NEED_HELP -> "Yardım İstiyor"
+        SafetyStatusType.SAFE -> "İYİYİM"
+        SafetyStatusType.NEED_HELP -> "YARDIM İSTİYOR"
         SafetyStatusType.SHARE_LOCATION -> "Konum Paylaştı"
-        SafetyStatusType.SOS -> "SOS Çağrısı"
+        SafetyStatusType.SOS -> "ACİL SOS"
         null -> "Belirsiz"
     }
 
@@ -820,6 +824,13 @@ private fun FamilyMemberCard(member: FamilyMember) {
     }
 
     val accentColor = statusTextColor
+    val cardContainerColor = when (statusType) {
+        SafetyStatusType.SOS -> Color(0xFFFFF1F1)
+        SafetyStatusType.NEED_HELP -> Color(0xFFFFF7ED)
+        SafetyStatusType.SAFE -> Color(0xFFF3FAF5)
+        SafetyStatusType.SHARE_LOCATION -> Color(0xFFF5F9FF)
+        null -> MaterialTheme.colorScheme.surface
+    }
 
     val statusIcon = when (statusType) {
         SafetyStatusType.SAFE -> Icons.Rounded.CheckCircle
@@ -844,8 +855,8 @@ private fun FamilyMemberCard(member: FamilyMember) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.55f)),
+        colors = CardDefaults.cardColors(containerColor = cardContainerColor),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.5f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Row(
@@ -947,16 +958,12 @@ private fun FamilyMemberCard(member: FamilyMember) {
                     }
                 }
 
-                // Bottom Info: Location & Time
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                // Bottom Info: Location, time and map action
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(
                             imageVector = if (member.lastStatusLatitude != null && member.lastStatusLongitude != null) Icons.Rounded.LocationOn else Icons.Rounded.LocationOff,
@@ -973,15 +980,37 @@ private fun FamilyMemberCard(member: FamilyMember) {
                         )
                     }
 
-                    if (relativeTime.isNotBlank()) {
-                        Text(
-                            text = relativeTime,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = KalkanTextMuted,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (relativeTime.isNotBlank()) {
+                            Text(
+                                text = "Son güncelleme: $relativeTime",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = KalkanTextMuted,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+
+                        val latitude = member.lastStatusLatitude
+                        val longitude = member.lastStatusLongitude
+                        if (latitude != null && longitude != null) {
+                            TextButton(onClick = { onOpenLocation(latitude, longitude) }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.LocationOn,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Konumu Aç")
+                            }
+                        }
                     }
                 }
             }

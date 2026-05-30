@@ -75,6 +75,7 @@ import com.kalkan.app.core.design.theme.KalkanRed
 import com.kalkan.app.core.design.theme.KalkanTextMuted
 import com.kalkan.app.model.SafetyStatusType
 import com.kalkan.app.ui.components.AnnouncementCard
+import com.kalkan.app.ui.components.AppTopNotificationCenter
 import com.kalkan.app.viewmodel.AnnouncementsUiState
 import com.kalkan.app.viewmodel.SafetyStatusUiState
 import androidx.compose.ui.text.style.TextOverflow
@@ -159,7 +160,11 @@ fun HomeScreen(
 
     LaunchedEffect(safetyStatusState.snackbarMessage) {
         val message = safetyStatusState.snackbarMessage ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
+        if (safetyStatusState.isError) {
+            snackbarHostState.showSnackbar(message)
+        } else {
+            AppTopNotificationCenter.showSuccess(message)
+        }
         onDismissSafetyMessage()
     }
 

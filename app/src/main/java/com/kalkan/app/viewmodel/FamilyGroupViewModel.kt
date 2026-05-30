@@ -69,7 +69,7 @@ class FamilyGroupViewModel @Inject constructor(
                     _uiState.update { it.copy(error = "Üye listesi yüklenemedi.") }
                 }
                 .collect { members ->
-                    _uiState.update { it.copy(members = members) }
+                    _uiState.update { it.copy(members = members.sortedByEmergencyPriority()) }
                 }
         }
     }
@@ -230,3 +230,9 @@ data class FamilyGroupUiState(
     val error: String? = null,
     val actionSuccessMessage: String? = null,
 )
+
+private fun List<FamilyMember>.sortedByEmergencyPriority(): List<FamilyMember> =
+    sortedWith(
+        compareBy<FamilyMember> { it.statusPriority }
+            .thenByDescending { it.lastStatusAt ?: 0L }
+    )

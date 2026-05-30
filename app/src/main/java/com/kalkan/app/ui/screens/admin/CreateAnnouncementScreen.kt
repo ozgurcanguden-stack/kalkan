@@ -46,6 +46,7 @@ import com.kalkan.app.core.design.theme.KalkanRed
 import com.kalkan.app.core.design.theme.KalkanTextMuted
 import com.kalkan.app.model.AnnouncementPriority
 import com.kalkan.app.model.AnnouncementTargetAudience
+import com.kalkan.app.ui.components.AppTopNotificationCenter
 import com.kalkan.app.viewmodel.CreateAnnouncementViewModel
 
 @Composable
@@ -62,7 +63,7 @@ fun CreateAnnouncementScreen(
 
     LaunchedEffect(uiState.successMessage) {
         val message = uiState.successMessage ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
+        AppTopNotificationCenter.showSuccess(message)
         viewModel.clearSuccessMessage()
         onCreatedSuccessfully()
     }

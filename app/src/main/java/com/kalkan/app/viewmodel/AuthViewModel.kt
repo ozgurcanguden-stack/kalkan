@@ -8,6 +8,7 @@ import com.kalkan.app.data.auth.AuthRepository
 import com.kalkan.app.data.fcm.FcmRepository
 import com.kalkan.app.data.user.UserRepository
 import com.kalkan.app.model.AppUser
+import com.kalkan.app.ui.components.AppTopNotificationCenter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,12 +27,14 @@ class AuthViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
     private var userObserverJob: Job? = null
+    private var pendingLoginSuccessMessage: String? = null
 
     init {
         observeAuthState()
     }
 
     fun signInAsGuest() {
+        pendingLoginSuccessMessage = "Misafir olarak giriş başarılı."
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             authRepository.signInAsGuest()
@@ -50,7 +53,9 @@ class AuthViewModel @Inject constructor(
                             user = fallbackUser,
                             hasAdminAccess = false,
                         )
+                        showPendingLoginSuccess()
                     } else {
+                        pendingLoginSuccessMessage = null
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -63,6 +68,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signInWithGoogleIdToken(idToken: String) {
+        pendingLoginSuccessMessage = "Google ile giriş başarılı."
         launchSignIn {
             authRepository.signInWithGoogleIdToken(idToken)
         }
@@ -71,6 +77,7 @@ class AuthViewModel @Inject constructor(
     fun signOut() {
         viewModelScope.launch {
             authRepository.signOut()
+            pendingLoginSuccessMessage = null
             _uiState.value = AuthUiState(isLoading = false)
         }
     }
@@ -120,6 +127,7 @@ class AuthViewModel @Inject constructor(
             block()
                 .onSuccess { syncUser(it) }
                 .onFailure { error ->
+                    pendingLoginSuccessMessage = null
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -139,6 +147,7 @@ class AuthViewModel @Inject constructor(
                     user = appUser,
                     hasAdminAccess = appUser.isAdmin,
                 )
+                showPendingLoginSuccess()
                 observeUserRole(appUser.uid)
                 fcmRepository.syncTokenForCurrentUser(appUser.notificationPermissionGranted)
             }
@@ -151,6 +160,7 @@ class AuthViewModel @Inject constructor(
                         user = fallbackUser,
                         hasAdminAccess = false,
                     )
+                    showPendingLoginSuccess()
                 } else {
                     _uiState.value = AuthUiState(
                         isLoading = false,
@@ -158,6 +168,11 @@ class AuthViewModel @Inject constructor(
                     )
                 }
             }
+    }
+
+    private fun showPendingLoginSuccess() {
+        pendingLoginSuccessMessage?.let(AppTopNotificationCenter::showSuccess)
+        pendingLoginSuccessMessage = null
     }
 
     private fun observeUserRole(uid: String) {

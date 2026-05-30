@@ -39,6 +39,7 @@ import com.kalkan.app.core.design.theme.KalkanTextMuted
 import com.kalkan.app.model.AppUser
 import com.kalkan.app.viewmodel.SettingsUiState
 import com.kalkan.app.util.AppVersionUtils
+import com.kalkan.app.ui.components.AppTopNotificationCenter
 
 private val ProfileNavy = Color(0xFF131B2E)
 private val KalkanLightBlue = Color(0xFFF3F8FC) // Sleek soft blue card background for Kalkan theme
@@ -90,7 +91,7 @@ fun ProfileScreen(
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
-            snackbarHostState.showSnackbar(message = it, duration = SnackbarDuration.Short)
+            AppTopNotificationCenter.showSuccess(it)
             onClearMessages()
         }
     }
@@ -356,7 +357,12 @@ fun ProfileScreen(
                                     }
                                     Switch(
                                         checked = vibrationEnabled,
-                                        onCheckedChange = { vibrationEnabled = it },
+                                        onCheckedChange = {
+                                            vibrationEnabled = it
+                                            AppTopNotificationCenter.showSuccess(
+                                                if (it) "Titreşim etkinleştirildi." else "Titreşim kapatıldı."
+                                            )
+                                        },
                                         colors = SwitchDefaults.colors(
                                             checkedThumbColor = Color.White,
                                             checkedTrackColor = KalkanBlue
@@ -385,7 +391,10 @@ fun ProfileScreen(
                                     SegmentedButtons(
                                         options = listOf("Sesli uyarı", "Titreşim", "Sadece bildirim"),
                                         selectedOption = alertMode,
-                                        onOptionSelected = { alertMode = it }
+                                        onOptionSelected = {
+                                            alertMode = it
+                                            AppTopNotificationCenter.showSuccess("Uyarı modu güncellendi: $it")
+                                        }
                                     )
                                 }
                             }
@@ -418,7 +427,7 @@ fun ProfileScreen(
                                     // Button: Bildirim sesi değiştir.
                                     Button(
                                         onClick = {
-                                            Toast.makeText(context, "Mevcut deprem alarm sesi seçildi.", Toast.LENGTH_SHORT).show()
+                                            AppTopNotificationCenter.showSuccess("Mevcut deprem alarm sesi seçildi.")
                                         },
                                         shape = RoundedCornerShape(24.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD0E3F5)),
@@ -436,7 +445,7 @@ fun ProfileScreen(
                                     OutlinedButton(
                                         onClick = {
                                             selectedSound = "Deprem Alarm Sesi (Varsayılan)"
-                                            Toast.makeText(context, "Alarm sesi varsayılana döndürüldü.", Toast.LENGTH_SHORT).show()
+                                            AppTopNotificationCenter.showSuccess("Alarm sesi varsayılana döndürüldü.")
                                         },
                                         shape = RoundedCornerShape(24.dp),
                                         border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.5f)),
