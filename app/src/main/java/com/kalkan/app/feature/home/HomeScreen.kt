@@ -27,12 +27,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -59,6 +61,10 @@ import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanGreen
 import com.kalkan.app.core.design.theme.KalkanRed
 import com.kalkan.app.core.design.theme.KalkanTextMuted
+import com.kalkan.app.ui.components.AnnouncementCard
+import com.kalkan.app.viewmodel.AnnouncementsUiState
+
+private const val HOME_ANNOUNCEMENT_PREVIEW_LIMIT = 3
 
 private val SuccessContainer = Color(0xFFC4EED0)
 private val OnSuccessContainer = Color(0xFF072711)
@@ -67,7 +73,11 @@ private val ErrorContainer = Color(0xFFFFDAD6)
 private val OnErrorContainer = Color(0xFF93000A)
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    announcementsState: AnnouncementsUiState,
+    onAnnouncementClick: (String) -> Unit,
+    onRetryAnnouncements: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -79,6 +89,11 @@ fun HomeScreen() {
         TopGreetingBar()
         StatusCard()
         EmergencyActionGrid()
+        AnnouncementsSection(
+            state = announcementsState,
+            onAnnouncementClick = onAnnouncementClick,
+            onRetry = onRetryAnnouncements,
+        )
         RecentEarthquakesCard()
         EmergencyContactsCard()
         Spacer(modifier = Modifier.height(12.dp))
@@ -132,6 +147,76 @@ private fun TopGreetingBar() {
                 contentDescription = "Ayarlar",
                 tint = MaterialTheme.colorScheme.primary,
             )
+        }
+    }
+}
+
+@Composable
+private fun AnnouncementsSection(
+    state: AnnouncementsUiState,
+    onAnnouncementClick: (String) -> Unit,
+    onRetry: () -> Unit,
+) {
+    HomeSectionCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Campaign,
+                contentDescription = null,
+                tint = KalkanBlue,
+            )
+            Text(
+                text = "Duyurular",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        when (state) {
+            AnnouncementsUiState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        color = KalkanBlue,
+                        strokeWidth = 2.dp,
+                    )
+                }
+            }
+            AnnouncementsUiState.Empty -> {
+                Text(
+                    text = "Henuz duyuru yok",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = KalkanTextMuted,
+                )
+            }
+            is AnnouncementsUiState.Error -> {
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = KalkanRed,
+                )
+                TextButton(onClick = onRetry) {
+                    Text("Tekrar Dene", color = KalkanBlue)
+                }
+            }
+            is AnnouncementsUiState.Success -> {
+                state.announcements
+                    .take(HOME_ANNOUNCEMENT_PREVIEW_LIMIT)
+                    .forEach { announcement ->
+                        AnnouncementCard(
+                            announcement = announcement,
+                            onClick = { onAnnouncementClick(announcement.id) },
+                        )
+                    }
+            }
         }
     }
 }

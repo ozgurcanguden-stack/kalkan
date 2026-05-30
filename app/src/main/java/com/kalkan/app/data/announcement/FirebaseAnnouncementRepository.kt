@@ -34,6 +34,39 @@ class FirebaseAnnouncementRepository @Inject constructor(
             .mapNotNull { it.toAnnouncement() }
     }
 
+    override suspend fun getPublishedAnnouncementsForUser(
+        isGuest: Boolean,
+        isRegistered: Boolean,
+    ): Result<List<Announcement>> = runCatching {
+        announcements
+            .whereEqualTo("status", AnnouncementStatus.PUBLISHED.value)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(FETCH_LIMIT)
+            .get()
+            .await()
+            .documents
+            .mapNotNull { it.toAnnouncement() }
+            .filter { matchesAudience(it, isGuest, isRegistered) }
+            .sortedWith(announcementComparator)
+    }
+
+    override suspend fun getAnnouncementById(
+        id: String,
+        isGuest: Boolean,
+        isRegistered: Boolean,
+    ): Result<Announcement> = runCatching {
+        val snapshot = announcements.document(id).get().await()
+        val announcement = snapshot.toAnnouncement()
+            ?: error("Duyuru bulunamadi.")
+        require(announcement.status == AnnouncementStatus.PUBLISHED) {
+            "Bu duyuru yayinda degil."
+        }
+        require(matchesAudience(announcement, isGuest, isRegistered)) {
+            "Bu duyuruyu goruntuleme yetkiniz yok."
+        }
+        announcement
+    }
+
     private val announcements
         get() = firestore.collection(COLLECTION)
 
@@ -66,5 +99,26 @@ class FirebaseAnnouncementRepository @Inject constructor(
 
     companion object {
         private const val COLLECTION = "announcements"
+        private const val FETCH_LIMIT = 50L
+
+        private val announcementComparator = compareByDescending<Announcement> { it.priority.sortWeight }
+            .thenByDescending { it.createdAt }
+
+        private fun matchesAudience(
+            announcement: Announcement,
+            isGuest: Boolean,
+            isRegistered: Boolean,
+        ): Boolean = when (announcement.targetAudience) {
+            AnnouncementTargetAudience.ALL -> true
+            AnnouncementTargetAudience.GUESTS -> isGuest
+            AnnouncementTargetAudience.REGISTERED -> isRegistered
+        }
+
+        private val AnnouncementPriority.sortWeight: Int
+            get() = when (this) {
+                AnnouncementPriority.URGENT -> 3
+                AnnouncementPriority.IMPORTANT -> 2
+                AnnouncementPriority.NORMAL -> 1
+            }
     }
 }

@@ -38,19 +38,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.kalkan.app.feature.earthquakes.EarthquakesScreen
 import com.kalkan.app.feature.family.FamilyScreen
 import com.kalkan.app.feature.home.HomeScreen
 import com.kalkan.app.feature.map.MapScreen
 import com.kalkan.app.feature.profile.ProfileScreen
 import com.kalkan.app.ui.screens.LoginScreen
+import com.kalkan.app.ui.screens.AnnouncementDetailScreen
 import com.kalkan.app.ui.screens.admin.AdminDashboardScreen
 import com.kalkan.app.ui.screens.admin.CreateAnnouncementScreen
 import com.kalkan.app.viewmodel.AdminDashboardViewModel
+import com.kalkan.app.viewmodel.AnnouncementsViewModel
 import com.kalkan.app.viewmodel.AuthViewModel
 import androidx.compose.runtime.collectAsState
 
@@ -152,7 +156,50 @@ fun KalkanNavHost() {
             popEnterTransition = { fadeIn(animationSpec = tween(durationMillis = 220)) },
             popExitTransition = { fadeOut(animationSpec = tween(durationMillis = 180)) },
         ) {
-            composable(KalkanRoute.Home.route) { HomeScreen() }
+            composable(KalkanRoute.Home.route) {
+                val announcementsViewModel: AnnouncementsViewModel = hiltViewModel()
+                val announcementsState by announcementsViewModel.uiState.collectAsState()
+                val user = authState.user
+                val isGuest = user?.isGuest == true
+                val isRegistered = user != null && !isGuest
+                LaunchedEffect(isGuest, isRegistered) {
+                    announcementsViewModel.loadAnnouncements(
+                        isGuest = isGuest,
+                        isRegistered = isRegistered,
+                    )
+                }
+                HomeScreen(
+                    announcementsState = announcementsState,
+                    onAnnouncementClick = { announcementId ->
+                        navController.navigate(
+                            KalkanRoute.AnnouncementDetail.createRoute(announcementId),
+                        ) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onRetryAnnouncements = {
+                        announcementsViewModel.loadAnnouncements(
+                            isGuest = isGuest,
+                            isRegistered = isRegistered,
+                        )
+                    },
+                )
+            }
+            composable(
+                route = KalkanRoute.AnnouncementDetail.route,
+                arguments = listOf(
+                    navArgument("announcementId") { type = NavType.StringType },
+                ),
+            ) {
+                val user = authState.user
+                val isGuest = user?.isGuest == true
+                val isRegistered = user != null && !isGuest
+                AnnouncementDetailScreen(
+                    isGuest = isGuest,
+                    isRegistered = isRegistered,
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
             composable(KalkanRoute.Earthquakes.route) { EarthquakesScreen() }
             composable(KalkanRoute.Map.route) { MapScreen() }
             composable(KalkanRoute.Family.route) { FamilyScreen() }

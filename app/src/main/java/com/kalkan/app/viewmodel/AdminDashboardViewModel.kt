@@ -2,7 +2,9 @@ package com.kalkan.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kalkan.app.data.announcement.ANNOUNCEMENT_LOAD_USER_MESSAGE
 import com.kalkan.app.data.announcement.AnnouncementRepository
+import com.kalkan.app.data.announcement.logAnnouncementError
 import com.kalkan.app.model.Announcement
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,10 +34,11 @@ class AdminDashboardViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
+                    logAnnouncementError("getRecentAnnouncements", error)
                     _uiState.update {
                         it.copy(
                             isLoadingAnnouncements = false,
-                            announcementsError = error.message ?: "Duyurular yuklenemedi.",
+                            announcementsError = ANNOUNCEMENT_LOAD_USER_MESSAGE,
                         )
                     }
                 }
