@@ -12,7 +12,20 @@
           "package_name": "com.kalkan.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "911199807772-3ju47im6osj7ulso4eokbtgj3eqmc02t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kalkan.app",
+            "certificate_hash": "c19528d4ef51828cac518d71f23e0ed2554491d9"
+          }
+        },
+        {
+          "client_id": "911199807772-bs158ie04hi9kt05j61j5d06jajvtsdh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBrfUI5HznOuHZaiFrB_jscdQbRzioV5cE"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "911199807772-bs158ie04hi9kt05j61j5d06jajvtsdh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

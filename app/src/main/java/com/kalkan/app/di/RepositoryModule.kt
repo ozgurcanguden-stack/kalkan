@@ -1,5 +1,7 @@
 package com.kalkan.app.di
 
+import com.kalkan.app.data.announcement.AnnouncementRepository
+import com.kalkan.app.data.announcement.FirebaseAnnouncementRepository
 import com.kalkan.app.data.auth.AuthRepository
 import com.kalkan.app.data.auth.FirebaseAuthRepository
 import com.kalkan.app.data.fcm.FcmRepository
@@ -38,4 +40,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindEmergencyRepository(repository: FirebaseEmergencyRepository): EmergencyRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAnnouncementRepository(repository: FirebaseAnnouncementRepository): AnnouncementRepository
 }

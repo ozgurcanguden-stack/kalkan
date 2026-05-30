@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -41,20 +43,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kalkan.app.core.design.theme.KalkanBlue
 import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanRed
 import com.kalkan.app.core.design.theme.KalkanTextMuted
+import com.kalkan.app.model.Announcement
+import com.kalkan.app.model.AnnouncementPriority
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun AdminDashboardScreen(
     hasAdminAccess: Boolean,
+    recentAnnouncements: List<Announcement>,
+    isLoadingAnnouncements: Boolean,
+    announcementsError: String?,
     onBackClick: () -> Unit,
+    onCreateAnnouncementClick: () -> Unit,
+    onRefreshAnnouncements: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(hasAdminAccess) {
+        if (hasAdminAccess) {
+            onRefreshAnnouncements()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -73,12 +92,21 @@ fun AdminDashboardScreen(
             ) {
                 AdminTopBar(onBackClick = onBackClick)
                 AdminHeaderCard()
+                RecentAnnouncementsSection(
+                    announcements = recentAnnouncements,
+                    isLoading = isLoadingAnnouncements,
+                    errorMessage = announcementsError,
+                )
                 adminFeatures.forEach { feature ->
                     AdminFeatureCard(
                         feature = feature,
                         onClick = {
-                            scope.launch {
-                                snackbarHostState.showSnackbar("${feature.title} hazirlaniyor.")
+                            if (feature.route == AdminFeatureRoute.CreateAnnouncement) {
+                                onCreateAnnouncementClick()
+                            } else {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("${feature.title} hazirlaniyor.")
+                                }
                             }
                         },
                     )
@@ -97,38 +125,92 @@ fun AdminDashboardScreen(
 }
 
 @Composable
-private fun UnauthorizedAdminContent(onBackClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .background(KalkanRed.copy(alpha = 0.12f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Rounded.Warning, contentDescription = null, tint = KalkanRed, modifier = Modifier.size(32.dp))
-        }
-        Spacer(modifier = Modifier.height(18.dp))
+private fun RecentAnnouncementsSection(
+    announcements: List<Announcement>,
+    isLoading: Boolean,
+    errorMessage: String?,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            text = "Bu alana erisim yetkiniz yok.",
-            style = MaterialTheme.typography.titleLarge,
+            text = "Son Duyurular",
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Admin paneli yalnizca super_admin rolune sahip kullanicilar icindir.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = KalkanTextMuted,
-        )
-        Spacer(modifier = Modifier.height(18.dp))
-        IconButton(onClick = onBackClick) {
-            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Geri don", tint = KalkanBlue)
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp), color = KalkanBlue)
+                }
+            }
+            errorMessage != null -> {
+                Text(text = errorMessage, style = MaterialTheme.typography.bodyMedium, color = KalkanRed)
+            }
+            announcements.isEmpty() -> {
+                Text(
+                    text = "Henuz duyuru olusturulmadi.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = KalkanTextMuted,
+                )
+            }
+            else -> {
+                announcements.forEach { announcement ->
+                    RecentAnnouncementCard(announcement = announcement)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentAnnouncementCard(announcement: Announcement) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.55f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = announcement.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = announcement.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = KalkanTextMuted,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "${announcement.priority.label} · ${announcement.targetAudience.label}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = priorityColor(announcement.priority),
+                )
+                Text(
+                    text = formatAnnouncementDate(announcement.createdAt),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = KalkanTextMuted,
+                )
+            }
         }
     }
 }
@@ -191,7 +273,7 @@ private fun AdminHeaderCard() {
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "Bu ekrandaki alanlar su an iskelet olarak hazirlandi.",
+                    text = "Duyuru olusturma aktif; diger alanlar iskelet olarak hazirlandi.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.78f),
                 )
@@ -236,19 +318,26 @@ private fun AdminFeatureCard(
     }
 }
 
+private enum class AdminFeatureRoute {
+    CreateAnnouncement,
+    Placeholder,
+}
+
 private data class AdminFeature(
     val title: String,
     val description: String,
     val icon: ImageVector,
     val tint: Color,
+    val route: AdminFeatureRoute = AdminFeatureRoute.Placeholder,
 )
 
 private val adminFeatures = listOf(
     AdminFeature(
         title = "Duyuru Gonder",
-        description = "Tum kullanicilara veya belirli bolgelere duyuru hazirlayin.",
+        description = "Tum kullanicilara veya belirli gruplara duyuru olusturun.",
         icon = Icons.Rounded.Campaign,
         tint = KalkanBlue,
+        route = AdminFeatureRoute.CreateAnnouncement,
     ),
     AdminFeature(
         title = "Acil Uyari Gonder",
@@ -281,3 +370,14 @@ private val adminFeatures = listOf(
         tint = Color(0xFF8B5CF6),
     ),
 )
+
+private fun priorityColor(priority: AnnouncementPriority): Color = when (priority) {
+    AnnouncementPriority.NORMAL -> KalkanBlue
+    AnnouncementPriority.IMPORTANT -> Color(0xFFF59E0B)
+    AnnouncementPriority.URGENT -> KalkanRed
+}
+
+private fun formatAnnouncementDate(epochMillis: Long): String {
+    if (epochMillis <= 0L) return ""
+    return SimpleDateFormat("dd.MM.yyyy HH:mm", Locale("tr", "TR")).format(Date(epochMillis))
+}

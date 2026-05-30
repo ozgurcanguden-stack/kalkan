@@ -49,6 +49,8 @@ import com.kalkan.app.feature.map.MapScreen
 import com.kalkan.app.feature.profile.ProfileScreen
 import com.kalkan.app.ui.screens.LoginScreen
 import com.kalkan.app.ui.screens.admin.AdminDashboardScreen
+import com.kalkan.app.ui.screens.admin.CreateAnnouncementScreen
+import com.kalkan.app.viewmodel.AdminDashboardViewModel
 import com.kalkan.app.viewmodel.AuthViewModel
 import androidx.compose.runtime.collectAsState
 
@@ -167,9 +169,14 @@ fun KalkanNavHost() {
                     onSignOut = authViewModel::signOut,
                 )
             }
-            composable(KalkanRoute.AdminDashboard.route) {
+            composable(KalkanRoute.AdminDashboard.route) { adminEntry ->
+                val adminDashboardViewModel: AdminDashboardViewModel = hiltViewModel(adminEntry)
+                val adminDashboardState by adminDashboardViewModel.uiState.collectAsState()
                 AdminDashboardScreen(
                     hasAdminAccess = authState.hasAdminAccess,
+                    recentAnnouncements = adminDashboardState.recentAnnouncements,
+                    isLoadingAnnouncements = adminDashboardState.isLoadingAnnouncements,
+                    announcementsError = adminDashboardState.announcementsError,
                     onBackClick = {
                         navController.navigate(KalkanRoute.Profile.route) {
                             popUpTo(KalkanRoute.Profile.route) {
@@ -177,6 +184,29 @@ fun KalkanNavHost() {
                             }
                             launchSingleTop = true
                         }
+                    },
+                    onCreateAnnouncementClick = {
+                        if (authState.hasAdminAccess) {
+                            navController.navigate(KalkanRoute.CreateAnnouncement.route)
+                        }
+                    },
+                    onRefreshAnnouncements = adminDashboardViewModel::loadRecentAnnouncements,
+                )
+            }
+            composable(KalkanRoute.CreateAnnouncement.route) {
+                val adminEntry = remember {
+                    navController.getBackStackEntry(KalkanRoute.AdminDashboard.route)
+                }
+                val adminDashboardViewModel: AdminDashboardViewModel = hiltViewModel(adminEntry)
+                val user = authState.user
+                CreateAnnouncementScreen(
+                    hasAdminAccess = authState.hasAdminAccess,
+                    createdByUid = user?.uid.orEmpty(),
+                    createdByName = user?.displayName?.takeIf { it.isNotBlank() } ?: "Admin",
+                    onBackClick = { navController.popBackStack() },
+                    onCreatedSuccessfully = {
+                        adminDashboardViewModel.loadRecentAnnouncements()
+                        navController.popBackStack()
                     },
                 )
             }
