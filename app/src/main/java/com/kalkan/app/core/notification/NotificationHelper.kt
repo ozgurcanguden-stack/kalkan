@@ -15,6 +15,7 @@ object NotificationHelper {
     const val CHANNEL_ID = "kalkan_alerts"
     private const val CHANNEL_NAME = "Kalkan Uyarıları"
     private const val CHANNEL_DESCRIPTION = "Afet ve acil durum bildirimleri"
+    private const val DEFAULT_BODY = "Test bildirimi başarıyla alındı."
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -41,16 +42,17 @@ object NotificationHelper {
     fun showKalkanNotification(
         context: Context,
         title: String = "Kalkan",
-        body: String = "Test bildirimi başarıyla alındı.",
+        body: String = DEFAULT_BODY,
     ) {
         createNotificationChannel(context)
         if (!canShowNotifications(context)) return
 
+        val safeBody = body.ifBlank { DEFAULT_BODY }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title.ifBlank { "Kalkan" })
-            .setContentText(body.ifBlank { "Test bildirimi başarıyla alındı." })
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setContentText(safeBody)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(safeBody))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()
