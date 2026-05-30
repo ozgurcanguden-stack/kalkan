@@ -6,5 +6,4 @@ sealed class KalkanRoute(val route: String, val title: String) {
     data object Map : KalkanRoute("map", "Harita")
     data object Family : KalkanRoute("family", "Ailem")
     data object Profile : KalkanRoute("profile", "Profil")
-    data object Admin : KalkanRoute("admin", "Admin")
 }
