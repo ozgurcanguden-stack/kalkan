@@ -1,0 +1,50 @@
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Local configuration
+local.properties
+
+# Generated files
+captures/
+.externalNativeBuild/
+.cxx/
+out/
+
+# APK / AAB outputs
+*.apk
+*.aab
+*.ap_
+*.aar
+
+# Keystore / signing files - çok önemli
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Kotlin / Java
+*.class
+
+# Google services - dikkat
+# Eğer public repo ise bunu göndermemek daha güvenli olabilir.
+# google-services.json
+
+# Secrets / env
+.env
+.env.*
+secrets.properties

@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.Kalkan" parent="android:style/Theme.Material.Light.NoActionBar" />
+</resources>
