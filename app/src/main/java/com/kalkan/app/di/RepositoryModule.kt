@@ -6,6 +6,8 @@ import com.kalkan.app.data.auth.AuthRepository
 import com.kalkan.app.data.auth.FirebaseAuthRepository
 import com.kalkan.app.data.fcm.FcmRepository
 import com.kalkan.app.data.fcm.FirebaseFcmRepository
+import com.kalkan.app.data.safety.FirebaseSafetyStatusRepository
+import com.kalkan.app.data.safety.SafetyStatusRepository
 import com.kalkan.app.data.repository.AfadEarthquakeRepository
 import com.kalkan.app.data.repository.FirebaseEmergencyRepository
 import com.kalkan.app.data.user.FirebaseUserRepository
@@ -44,4 +46,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAnnouncementRepository(repository: FirebaseAnnouncementRepository): AnnouncementRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSafetyStatusRepository(repository: FirebaseSafetyStatusRepository): SafetyStatusRepository
 }

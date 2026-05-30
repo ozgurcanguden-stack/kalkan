@@ -56,6 +56,7 @@ import com.kalkan.app.ui.screens.admin.CreateAnnouncementScreen
 import com.kalkan.app.viewmodel.AdminDashboardViewModel
 import com.kalkan.app.viewmodel.AnnouncementsViewModel
 import com.kalkan.app.viewmodel.AuthViewModel
+import com.kalkan.app.viewmodel.SafetyStatusViewModel
 import androidx.compose.runtime.collectAsState
 
 private val bottomRoutes = listOf(
@@ -158,7 +159,9 @@ fun KalkanNavHost() {
         ) {
             composable(KalkanRoute.Home.route) {
                 val announcementsViewModel: AnnouncementsViewModel = hiltViewModel()
+                val safetyStatusViewModel: SafetyStatusViewModel = hiltViewModel()
                 val announcementsState by announcementsViewModel.uiState.collectAsState()
+                val safetyStatusState by safetyStatusViewModel.uiState.collectAsState()
                 val user = authState.user
                 val isGuest = user?.isGuest == true
                 val isRegistered = user != null && !isGuest
@@ -183,6 +186,11 @@ fun KalkanNavHost() {
                             isRegistered = isRegistered,
                         )
                     },
+                    safetyStatusState = safetyStatusState,
+                    onSafetyStatusAction = { statusType ->
+                        safetyStatusViewModel.submitSafetyStatus(statusType, user)
+                    },
+                    onDismissSafetyMessage = safetyStatusViewModel::clearSnackbarMessage,
                 )
             }
             composable(

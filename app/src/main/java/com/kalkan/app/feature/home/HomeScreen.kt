@@ -7,6 +7,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,9 +45,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,8 +66,10 @@ import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanGreen
 import com.kalkan.app.core.design.theme.KalkanRed
 import com.kalkan.app.core.design.theme.KalkanTextMuted
+import com.kalkan.app.model.SafetyStatusType
 import com.kalkan.app.ui.components.AnnouncementCard
 import com.kalkan.app.viewmodel.AnnouncementsUiState
+import com.kalkan.app.viewmodel.SafetyStatusUiState
 
 private const val HOME_ANNOUNCEMENT_PREVIEW_LIMIT = 3
 
@@ -77,26 +84,64 @@ fun HomeScreen(
     announcementsState: AnnouncementsUiState,
     onAnnouncementClick: (String) -> Unit,
     onRetryAnnouncements: () -> Unit,
+    safetyStatusState: SafetyStatusUiState,
+    onSafetyStatusAction: (SafetyStatusType) -> Unit,
+    onDismissSafetyMessage: () -> Unit,
 ) {
-    Column(
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(safetyStatusState.snackbarMessage) {
+        val message = safetyStatusState.snackbarMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        onDismissSafetyMessage()
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+            .background(MaterialTheme.colorScheme.background),
     ) {
-        TopGreetingBar()
-        StatusCard()
-        EmergencyActionGrid()
-        AnnouncementsSection(
-            state = announcementsState,
-            onAnnouncementClick = onAnnouncementClick,
-            onRetry = onRetryAnnouncements,
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            TopGreetingBar()
+            StatusCard()
+            EmergencyActionGrid(
+                isSubmitting = safetyStatusState.isSubmitting,
+                onSafeClick = { onSafetyStatusAction(SafetyStatusType.SAFE) },
+                onNeedHelpClick = { onSafetyStatusAction(SafetyStatusType.NEED_HELP) },
+                onShareLocationClick = { onSafetyStatusAction(SafetyStatusType.SHARE_LOCATION) },
+                onSosClick = { onSafetyStatusAction(SafetyStatusType.SOS) },
+            )
+            AnnouncementsSection(
+                state = announcementsState,
+                onAnnouncementClick = onAnnouncementClick,
+                onRetry = onRetryAnnouncements,
+            )
+            RecentEarthquakesCard()
+            EmergencyContactsCard()
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (safetyStatusState.isSubmitting) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = KalkanBlue)
+            }
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
         )
-        RecentEarthquakesCard()
-        EmergencyContactsCard()
-        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
@@ -265,7 +310,13 @@ private fun StatusCard() {
 }
 
 @Composable
-private fun EmergencyActionGrid() {
+private fun EmergencyActionGrid(
+    isSubmitting: Boolean,
+    onSafeClick: () -> Unit,
+    onNeedHelpClick: () -> Unit,
+    onShareLocationClick: () -> Unit,
+    onSosClick: () -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             EmergencyTile(
@@ -273,16 +324,24 @@ private fun EmergencyActionGrid() {
                 icon = Icons.Rounded.CheckCircle,
                 containerColor = Color(0xFF0B5121),
                 modifier = Modifier.weight(1f),
+                enabled = !isSubmitting,
+                onClick = onSafeClick,
             )
             EmergencyTile(
                 title = "Yardım\nİstiyorum",
                 icon = Icons.Rounded.Warning,
                 containerColor = KalkanRed,
                 modifier = Modifier.weight(1f),
+                enabled = !isSubmitting,
+                onClick = onNeedHelpClick,
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            LocationTile(modifier = Modifier.weight(1f))
+            LocationTile(
+                modifier = Modifier.weight(1f),
+                enabled = !isSubmitting,
+                onClick = onShareLocationClick,
+            )
             EmergencyTile(
                 title = "SOS",
                 icon = Icons.Rounded.Warning,
@@ -290,6 +349,8 @@ private fun EmergencyActionGrid() {
                 modifier = Modifier.weight(1f),
                 titleSize = 32,
                 isSos = true,
+                enabled = !isSubmitting,
+                onClick = onSosClick,
             )
         }
     }
@@ -300,9 +361,11 @@ private fun EmergencyTile(
     title: String,
     icon: ImageVector,
     containerColor: Color,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     titleSize: Int = 24,
     isSos: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "sosPulse")
     val scale = infiniteTransition.animateFloat(
@@ -316,7 +379,8 @@ private fun EmergencyTile(
     )
 
     Button(
-        onClick = {},
+        onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .heightIn(min = 140.dp)
             .graphicsLayer {
@@ -351,9 +415,14 @@ private fun EmergencyTile(
 }
 
 @Composable
-private fun LocationTile(modifier: Modifier = Modifier) {
+private fun LocationTile(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
     OutlinedButton(
-        onClick = {},
+        onClick = onClick,
+        enabled = enabled,
         modifier = modifier.heightIn(min = 140.dp),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(2.dp, MaterialTheme.colorScheme.surfaceVariant),
