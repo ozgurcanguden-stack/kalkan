@@ -2,6 +2,8 @@ package com.kalkan.app.di
 
 import com.kalkan.app.data.auth.AuthRepository
 import com.kalkan.app.data.auth.FirebaseAuthRepository
+import com.kalkan.app.data.fcm.FcmRepository
+import com.kalkan.app.data.fcm.FirebaseFcmRepository
 import com.kalkan.app.data.repository.AfadEarthquakeRepository
 import com.kalkan.app.data.repository.FirebaseEmergencyRepository
 import com.kalkan.app.data.user.FirebaseUserRepository
@@ -24,6 +26,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindUserRepository(repository: FirebaseUserRepository): UserRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFcmRepository(repository: FirebaseFcmRepository): FcmRepository
 
     @Binds
     @Singleton

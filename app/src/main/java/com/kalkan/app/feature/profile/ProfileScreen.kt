@@ -57,6 +57,7 @@ private val ProfileNavy = Color(0xFF131B2E)
 fun ProfileScreen(
     user: AppUser?,
     hasAdminAccess: Boolean,
+    notificationPermissionGranted: Boolean,
     onAdminPanelClick: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -74,7 +75,7 @@ fun ProfileScreen(
             AdminPanelEntry(onAdminPanelClick = onAdminPanelClick)
         }
         SettingsList()
-        NotificationSettings()
+        NotificationSettings(notificationPermissionGranted = notificationPermissionGranted)
         LogoutCard(onSignOut = onSignOut)
         Spacer(modifier = Modifier.height(12.dp))
     }
@@ -221,7 +222,7 @@ private fun ProfileRow(
 }
 
 @Composable
-private fun NotificationSettings() {
+private fun NotificationSettings(notificationPermissionGranted: Boolean) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -230,7 +231,12 @@ private fun NotificationSettings() {
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("Bildirim Ayarları", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-            NotificationRow("Deprem Uyarıları", "Yakındaki ve önemli depremler", checked = true)
+            NotificationRow(
+                "Bildirim Durumu",
+                if (notificationPermissionGranted) "Bildirim izni aktif" else "Bildirim izni bekleniyor",
+                checked = notificationPermissionGranted,
+            )
+            NotificationRow("Deprem Uyarıları", "Yakındaki ve önemli depremler", checked = notificationPermissionGranted)
             NotificationRow("Aile Bildirimleri", "Aile üyelerinin güvenlik durumu", checked = true)
         }
     }

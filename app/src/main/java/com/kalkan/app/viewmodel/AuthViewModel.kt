@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.kalkan.app.data.auth.AuthRepository
+import com.kalkan.app.data.fcm.FcmRepository
 import com.kalkan.app.data.user.UserRepository
 import com.kalkan.app.model.AppUser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +21,7 @@ import javax.inject.Inject
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
+    private val fcmRepository: FcmRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -70,6 +72,19 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.signOut()
             _uiState.value = AuthUiState(isLoading = false)
+        }
+    }
+
+    fun syncFcmToken(notificationPermissionGranted: Boolean) {
+        viewModelScope.launch {
+            fcmRepository.syncTokenForCurrentUser(notificationPermissionGranted)
+        }
+    }
+
+    fun updateNotificationPermission(granted: Boolean) {
+        viewModelScope.launch {
+            fcmRepository.updateNotificationPermissionForCurrentUser(granted)
+            fcmRepository.syncTokenForCurrentUser(granted)
         }
     }
 
@@ -125,6 +140,7 @@ class AuthViewModel @Inject constructor(
                     hasAdminAccess = appUser.isAdmin,
                 )
                 observeUserRole(appUser.uid)
+                fcmRepository.syncTokenForCurrentUser(appUser.notificationPermissionGranted)
             }
             .onFailure { error ->
                 if (error.isOfflineFirestoreError()) {

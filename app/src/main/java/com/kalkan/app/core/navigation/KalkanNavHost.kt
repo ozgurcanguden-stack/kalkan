@@ -1,5 +1,10 @@
 package com.kalkan.app.core.navigation
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -24,9 +29,13 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -55,6 +64,29 @@ private val bottomRoutes = listOf(
 fun KalkanNavHost() {
     val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        authViewModel.updateNotificationPermission(granted)
+    }
+    val hasNotificationPermission = remember(authState.isAuthenticated) {
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    LaunchedEffect(authState.isAuthenticated) {
+        if (authState.isAuthenticated) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                authViewModel.updateNotificationPermission(hasNotificationPermission)
+            }
+        }
+    }
 
     if (!authState.isAuthenticated) {
         LoginScreen(
@@ -126,6 +158,7 @@ fun KalkanNavHost() {
                 ProfileScreen(
                     user = authState.user,
                     hasAdminAccess = authState.hasAdminAccess,
+                    notificationPermissionGranted = authState.user?.notificationPermissionGranted == true,
                     onAdminPanelClick = {
                         if (authState.hasAdminAccess) {
                             navController.navigate(KalkanRoute.AdminDashboard.route)

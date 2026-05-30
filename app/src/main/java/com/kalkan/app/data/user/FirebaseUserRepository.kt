@@ -61,6 +61,9 @@ class FirebaseUserRepository @Inject constructor(
         "isAdmin" to isAdmin,
         "createdAt" to createdAt,
         "lastLoginAt" to lastLoginAt,
+        "fcmToken" to fcmToken,
+        "notificationPermissionGranted" to notificationPermissionGranted,
+        "lastFcmTokenUpdatedAt" to lastFcmTokenUpdatedAt,
     )
 
     private fun DocumentSnapshot.toAppUser(): AppUser? {
@@ -75,6 +78,9 @@ class FirebaseUserRepository @Inject constructor(
             isAdmin = getBoolean("isAdmin") == true && role == UserRole.SUPER_ADMIN,
             createdAt = getLong("createdAt") ?: 0L,
             lastLoginAt = getLong("lastLoginAt") ?: 0L,
+            fcmToken = getString("fcmToken"),
+            notificationPermissionGranted = getBoolean("notificationPermissionGranted") == true,
+            lastFcmTokenUpdatedAt = getLong("lastFcmTokenUpdatedAt") ?: 0L,
         )
     }
 }
