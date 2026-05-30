@@ -4,8 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.hilt)
-    // Enable after adding app/google-services.json from Firebase Console.
-    // alias(libs.plugins.google.services)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -55,7 +54,6 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.analytics)
-    implementation(libs.firebase.crashlytics)
     implementation(libs.google.services.auth)
     implementation(libs.google.services.location)
     implementation(libs.google.maps.compose)

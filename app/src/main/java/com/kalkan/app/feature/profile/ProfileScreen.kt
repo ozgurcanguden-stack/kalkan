@@ -3,6 +3,7 @@ package com.kalkan.app.feature.profile
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,14 +19,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Help
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -47,11 +49,17 @@ import com.kalkan.app.core.design.theme.KalkanBlue
 import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanRed
 import com.kalkan.app.core.design.theme.KalkanTextMuted
+import com.kalkan.app.model.AppUser
 
 private val ProfileNavy = Color(0xFF131B2E)
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(
+    user: AppUser?,
+    hasAdminAccess: Boolean,
+    onAdminPanelClick: () -> Unit,
+    onSignOut: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -61,26 +69,51 @@ fun ProfileScreen() {
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         ProfileTopBar()
-        ProfileHeaderCard()
+        ProfileHeaderCard(user = user, hasAdminAccess = hasAdminAccess)
+        if (hasAdminAccess) {
+            AdminPanelEntry(onAdminPanelClick = onAdminPanelClick)
+        }
         SettingsList()
         NotificationSettings()
-        LogoutCard()
+        LogoutCard(onSignOut = onSignOut)
         Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
 @Composable
+private fun AdminPanelEntry(onAdminPanelClick: () -> Unit) {
+    ProfileRow(
+        icon = Icons.Rounded.AdminPanelSettings,
+        title = "Admin Paneli",
+        subtitle = "Kalkan yonetim merkezi",
+        onClick = onAdminPanelClick,
+    )
+}
+
+@Composable
 private fun ProfileTopBar() {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(Color(0xFFE6E8EA), CircleShape), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFFE6E8EA), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(Icons.Rounded.Person, contentDescription = null, tint = KalkanTextMuted)
             }
-            Text("Profil", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Profil",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+            )
         }
         IconButton(onClick = {}) {
             Icon(Icons.Rounded.Settings, contentDescription = "Ayarlar", tint = MaterialTheme.colorScheme.primary)
@@ -89,7 +122,10 @@ private fun ProfileTopBar() {
 }
 
 @Composable
-private fun ProfileHeaderCard() {
+private fun ProfileHeaderCard(
+    user: AppUser?,
+    hasAdminAccess: Boolean,
+) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = ProfileNavy),
@@ -112,9 +148,25 @@ private fun ProfileHeaderCard() {
                     Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(38.dp))
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Merhaba, Kullanıcı", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
-                    Text("Google hesabı bağlı değil", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.78f))
-                    Text("Misafir Modu", modifier = Modifier.background(Color.White.copy(alpha = 0.16f), CircleShape).padding(horizontal = 10.dp, vertical = 4.dp), color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = user?.displayName?.takeIf { it.isNotBlank() } ?: "Merhaba, Kullanıcı",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = user?.email ?: "Misafir hesabı",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.78f),
+                    )
+                    Text(
+                        text = if (hasAdminAccess) "Süper Admin" else "Kullanıcı",
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.16f), CircleShape)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
             }
         }
@@ -135,6 +187,7 @@ private fun ProfileRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
+    onClick: (() -> Unit)? = null,
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -143,11 +196,19 @@ private fun ProfileRow(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(modifier = Modifier.size(42.dp).background(Color(0xFFDBE1FF), CircleShape), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(Color(0xFFDBE1FF), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(icon, contentDescription = null, tint = KalkanBlue)
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -177,9 +238,18 @@ private fun NotificationSettings() {
 
 @Composable
 private fun NotificationRow(title: String, subtitle: String, checked: Boolean) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(Color(0xFFEFF6FF), CircleShape), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFFEFF6FF), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(Icons.Rounded.Notifications, contentDescription = null, tint = KalkanBlue)
             }
             Column {
@@ -196,7 +266,7 @@ private fun NotificationRow(title: String, subtitle: String, checked: Boolean) {
 }
 
 @Composable
-private fun LogoutCard() {
+private fun LogoutCard(onSignOut: () -> Unit) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F2)),
@@ -204,7 +274,9 @@ private fun LogoutCard() {
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -212,8 +284,8 @@ private fun LogoutCard() {
                 Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null, tint = KalkanRed)
                 Text("Çıkış Yap", color = KalkanRed, fontWeight = FontWeight.Bold)
             }
-            TextButton(onClick = {}) {
-                Icon(Icons.Rounded.Shield, contentDescription = null, tint = KalkanRed)
+            TextButton(onClick = onSignOut) {
+                Icon(Icons.Rounded.Shield, contentDescription = "Çıkış Yap", tint = KalkanRed)
             }
         }
     }

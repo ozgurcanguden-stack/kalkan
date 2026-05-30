@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "911199807772",
+    "project_id": "kalkan-f116e",
+    "storage_bucket": "kalkan-f116e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:911199807772:android:c6b5106b218e6d8b8572d9",
+        "android_client_info": {
+          "package_name": "com.kalkan.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrfUI5HznOuHZaiFrB_jscdQbRzioV5cE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -37,6 +38,10 @@ import com.kalkan.app.feature.family.FamilyScreen
 import com.kalkan.app.feature.home.HomeScreen
 import com.kalkan.app.feature.map.MapScreen
 import com.kalkan.app.feature.profile.ProfileScreen
+import com.kalkan.app.ui.screens.LoginScreen
+import com.kalkan.app.ui.screens.admin.AdminDashboardScreen
+import com.kalkan.app.viewmodel.AuthViewModel
+import androidx.compose.runtime.collectAsState
 
 private val bottomRoutes = listOf(
     BottomNavItem(KalkanRoute.Home, Icons.Rounded.Home, Icons.Outlined.Home),
@@ -48,6 +53,20 @@ private val bottomRoutes = listOf(
 
 @Composable
 fun KalkanNavHost() {
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val authState by authViewModel.uiState.collectAsState()
+
+    if (!authState.isAuthenticated) {
+        LoginScreen(
+            isLoading = authState.isLoading,
+            errorMessage = authState.errorMessage,
+            onGoogleToken = authViewModel::signInWithGoogleIdToken,
+            onGoogleUnavailable = authViewModel::showGoogleSetupError,
+            onGuestClick = authViewModel::signInAsGuest,
+        )
+        return
+    }
+
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -103,7 +122,31 @@ fun KalkanNavHost() {
             composable(KalkanRoute.Earthquakes.route) { EarthquakesScreen() }
             composable(KalkanRoute.Map.route) { MapScreen() }
             composable(KalkanRoute.Family.route) { FamilyScreen() }
-            composable(KalkanRoute.Profile.route) { ProfileScreen() }
+            composable(KalkanRoute.Profile.route) {
+                ProfileScreen(
+                    user = authState.user,
+                    hasAdminAccess = authState.hasAdminAccess,
+                    onAdminPanelClick = {
+                        if (authState.hasAdminAccess) {
+                            navController.navigate(KalkanRoute.AdminDashboard.route)
+                        }
+                    },
+                    onSignOut = authViewModel::signOut,
+                )
+            }
+            composable(KalkanRoute.AdminDashboard.route) {
+                AdminDashboardScreen(
+                    hasAdminAccess = authState.hasAdminAccess,
+                    onBackClick = {
+                        navController.navigate(KalkanRoute.Profile.route) {
+                            popUpTo(KalkanRoute.Profile.route) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
         }
     }
 }
