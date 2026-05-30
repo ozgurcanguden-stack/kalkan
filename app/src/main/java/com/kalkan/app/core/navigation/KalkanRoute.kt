@@ -8,6 +8,8 @@ sealed class KalkanRoute(val route: String, val title: String) {
     data object Map : KalkanRoute("map", "Harita")
     data object Family : KalkanRoute("family", "Ailem")
     data object AddEmergencyContact : KalkanRoute("add_emergency_contact", "Kişi Ekle")
+    data object EmergencyProfileView : KalkanRoute("emergency_profile", "Acil Durum Kartı")
+    data object EmergencyProfileEdit : KalkanRoute("emergency_profile/edit", "Kartı Düzenle")
     data object Profile : KalkanRoute("profile", "Profil")
     data object AdminDashboard : KalkanRoute("admin_dashboard", "Admin Paneli")
     data object CreateAnnouncement : KalkanRoute("create_announcement", "Duyuru Olustur")

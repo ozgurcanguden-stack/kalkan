@@ -46,17 +46,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.kalkan.app.core.design.theme.KalkanBlue
 import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanTextMuted
 import com.kalkan.app.model.EmergencyContactRelations
+import com.kalkan.app.util.TurkishPhoneVisualTransformation
 import com.kalkan.app.viewmodel.AddEmergencyContactFormState
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -325,37 +322,5 @@ private fun EmergencyContactFormLabel(
             fontWeight = FontWeight.SemiBold,
         )
         content()
-    }
-}
-
-private class TurkishPhoneVisualTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        val digits = text.text
-        val formatted = buildString {
-            digits.forEachIndexed { i, c ->
-                append(c)
-                if (i == 2 || i == 5 || i == 7) append(' ')
-            }
-        }
-
-        val offsetMapping = object : OffsetMapping {
-            override fun originalToTransformed(offset: Int): Int = when {
-                offset <= 2 -> offset
-                offset <= 5 -> offset + 1
-                offset <= 7 -> offset + 2
-                offset <= 10 -> offset + 3
-                else -> formatted.length
-            }
-
-            override fun transformedToOriginal(offset: Int): Int = when {
-                offset <= 3 -> offset
-                offset <= 7 -> offset - 1
-                offset <= 10 -> offset - 2
-                offset <= 14 -> offset - 3
-                else -> digits.length
-            }
-        }
-
-        return TransformedText(AnnotatedString(formatted), offsetMapping)
     }
 }

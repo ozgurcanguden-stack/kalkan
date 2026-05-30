@@ -70,6 +70,14 @@ class FirebaseSettingsRepository @Inject constructor(
             Log.d(TAG, "Deleted ${contactsSnapshot.size()} emergency contacts")
         }
 
+        val emergencyProfileRef = userRef(uid)
+            .collection("emergency_profile")
+            .document(com.kalkan.app.model.EmergencyBloodTypes.DOCUMENT_ID)
+        if (emergencyProfileRef.get().await().exists()) {
+            emergencyProfileRef.delete().await()
+            Log.d(TAG, "Deleted emergency_profile/current")
+        }
+
         val familyGroupId = user.familyGroupId
         if (!familyGroupId.isNullOrBlank()) {
             Log.d(TAG, "Leaving family group: $familyGroupId")

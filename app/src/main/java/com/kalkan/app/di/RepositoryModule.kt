@@ -6,6 +6,8 @@ import com.kalkan.app.data.auth.AuthRepository
 import com.kalkan.app.data.auth.FirebaseAuthRepository
 import com.kalkan.app.data.fcm.FcmRepository
 import com.kalkan.app.data.fcm.FirebaseFcmRepository
+import com.kalkan.app.data.emergencyprofile.EmergencyProfileRepository
+import com.kalkan.app.data.emergencyprofile.FirebaseEmergencyProfileRepository
 import com.kalkan.app.data.contacts.EmergencyContactRepository
 import com.kalkan.app.data.contacts.FirebaseEmergencyContactRepository
 import com.kalkan.app.data.location.FusedLocationRepository
@@ -72,6 +74,12 @@ abstract class RepositoryModule {
     abstract fun bindFamilyRepository(
         repository: FirebaseFamilyRepository,
     ): FamilyRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindEmergencyProfileRepository(
+        repository: FirebaseEmergencyProfileRepository,
+    ): EmergencyProfileRepository
 
     @Binds
     @Singleton

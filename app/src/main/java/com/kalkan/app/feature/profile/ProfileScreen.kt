@@ -72,7 +72,8 @@ fun ProfileScreen(
     onSetBackupFrequency: (com.kalkan.app.model.BackupFrequency) -> Unit,
     onDeleteAccountClick: () -> Unit,
     onTestNotificationClick: () -> Unit,
-    onClearMessages: () -> Unit
+    onClearMessages: () -> Unit,
+    onEmergencyProfileClick: () -> Unit,
 ) {
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
@@ -145,6 +146,13 @@ fun ProfileScreen(
                                     icon = Icons.Rounded.Person,
                                     label = "Hesap Bilgileri",
                                     onClick = { activeSubScreen = ProfileSubScreen.HESAP_AYARLARI },
+                                    showDivider = true,
+                                    isDark = isDark,
+                                )
+                                StitchListRow(
+                                    icon = Icons.Rounded.MedicalServices,
+                                    label = "Acil Durum Kartı",
+                                    onClick = onEmergencyProfileClick,
                                     showDivider = true,
                                     isDark = isDark,
                                 )

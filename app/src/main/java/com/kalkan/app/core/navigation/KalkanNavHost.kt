@@ -50,6 +50,8 @@ import com.kalkan.app.feature.family.FamilyScreen
 import com.kalkan.app.feature.home.HomeScreen
 import com.kalkan.app.feature.map.MapScreen
 import com.kalkan.app.feature.profile.ProfileScreen
+import com.kalkan.app.ui.screens.EmergencyProfileEditScreen
+import com.kalkan.app.ui.screens.EmergencyProfileViewScreen
 import com.kalkan.app.ui.screens.LoginScreen
 import com.kalkan.app.ui.screens.AnnouncementDetailScreen
 import com.kalkan.app.feature.earthquakes.EarthquakeViewModel
@@ -62,6 +64,7 @@ import com.kalkan.app.viewmodel.AdminDashboardViewModel
 import com.kalkan.app.viewmodel.AnnouncementsViewModel
 import com.kalkan.app.viewmodel.AuthViewModel
 import com.kalkan.app.viewmodel.EmergencyContactsViewModel
+import com.kalkan.app.viewmodel.EmergencyProfileViewModel
 import com.kalkan.app.viewmodel.SafetyStatusViewModel
 import com.kalkan.app.viewmodel.FamilyGroupViewModel
 import com.kalkan.app.model.BackupFrequency
@@ -357,6 +360,57 @@ fun KalkanNavHost(
                     },
                 )
             }
+            composable(KalkanRoute.EmergencyProfileView.route) {
+                val emergencyProfileViewModel: EmergencyProfileViewModel = hiltViewModel()
+                val emergencyProfileState by emergencyProfileViewModel.uiState.collectAsState()
+                val user = authState.user
+
+                LaunchedEffect(user?.uid) {
+                    emergencyProfileViewModel.startObserving(user?.uid)
+                }
+
+                EmergencyProfileViewScreen(
+                    uiState = emergencyProfileState,
+                    onBackClick = { navController.popBackStack() },
+                    onEditClick = {
+                        emergencyProfileViewModel.prepareEditForm()
+                        navController.navigate(KalkanRoute.EmergencyProfileEdit.route)
+                    },
+                    onDeleteConfirmed = {
+                        emergencyProfileViewModel.deleteProfile {
+                            navController.popBackStack()
+                        }
+                    },
+                    onClearMessages = emergencyProfileViewModel::clearMessages,
+                )
+            }
+            composable(KalkanRoute.EmergencyProfileEdit.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(KalkanRoute.EmergencyProfileView.route)
+                }
+                val emergencyProfileViewModel: EmergencyProfileViewModel = hiltViewModel(parentEntry)
+                val emergencyProfileState by emergencyProfileViewModel.uiState.collectAsState()
+
+                EmergencyProfileEditScreen(
+                    form = emergencyProfileState.form,
+                    formError = emergencyProfileState.formError,
+                    isSaving = emergencyProfileState.isSaving,
+                    onBackClick = { navController.popBackStack() },
+                    onFullNameChange = emergencyProfileViewModel::onFullNameChange,
+                    onBloodTypeChange = emergencyProfileViewModel::onBloodTypeChange,
+                    onAllergiesChange = emergencyProfileViewModel::onAllergiesChange,
+                    onChronicDiseasesChange = emergencyProfileViewModel::onChronicDiseasesChange,
+                    onMedicationsChange = emergencyProfileViewModel::onMedicationsChange,
+                    onEmergencyNoteChange = emergencyProfileViewModel::onEmergencyNoteChange,
+                    onPrimaryContactNameChange = emergencyProfileViewModel::onPrimaryContactNameChange,
+                    onPrimaryContactPhoneChange = emergencyProfileViewModel::onPrimaryContactPhoneChange,
+                    onSaveClick = {
+                        emergencyProfileViewModel.saveProfile {
+                            navController.popBackStack()
+                        }
+                    },
+                )
+            }
             composable(KalkanRoute.Profile.route) {
                 val settingsViewModel: SettingsViewModel = hiltViewModel()
                 val settingsUiState by settingsViewModel.uiState.collectAsState()
@@ -397,7 +451,10 @@ fun KalkanNavHost(
                     },
                     onClearMessages = {
                         settingsViewModel.clearMessages()
-                    }
+                    },
+                    onEmergencyProfileClick = {
+                        navController.navigate(KalkanRoute.EmergencyProfileView.route)
+                    },
                 )
             }
             composable(KalkanRoute.AdminDashboard.route) { adminEntry ->
