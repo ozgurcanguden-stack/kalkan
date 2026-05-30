@@ -1,5 +1,6 @@
 package com.kalkan.app.services
 
+import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.kalkan.app.core.notification.NotificationHelper
@@ -14,6 +15,9 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class KalkanFirebaseMessagingService : FirebaseMessagingService() {
+    companion object {
+        private const val TAG = "KalkanFCM"
+    }
     @Inject
     lateinit var fcmRepository: FcmRepository
 
@@ -33,6 +37,10 @@ class KalkanFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
+
+        if (message.data["type"] == "announcement") {
+            Log.d(TAG, "announcementId=${message.data["announcementId"]}, priority=${message.data["priority"]}")
+        }
 
         val title = message.notification?.title
             ?: message.data["title"]
