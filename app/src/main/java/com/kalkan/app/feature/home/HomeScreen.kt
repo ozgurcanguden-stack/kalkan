@@ -36,7 +36,6 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
@@ -239,19 +238,10 @@ private fun TopGreetingBar(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(SurfaceVariant, CircleShape)
-                    .border(BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.6f)), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Person,
-                    contentDescription = null,
-                    tint = KalkanTextMuted,
-                )
-            }
+            Text(
+                text = "\uD83C\uDDF9\uD83C\uDDF7",
+                fontSize = 28.sp,
+            )
             Column {
                 Text(
                     text = greeting,
@@ -267,13 +257,6 @@ private fun TopGreetingBar(
             }
         }
 
-        IconButton(onClick = onSettingsClick) {
-            Icon(
-                imageVector = Icons.Rounded.Settings,
-                contentDescription = "Ayarlar",
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
     }
 }
 

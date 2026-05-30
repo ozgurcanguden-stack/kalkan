@@ -24,7 +24,13 @@ fun validateEmergencyContact(
         return "Telefon boş olamaz."
     }
     if (phoneDigits.length < 10) {
-        return "Telefon en az 10 rakam içermelidir."
+        return "Telefon numarası 10 hane olmalıdır."
+    }
+    if (phoneDigits.length > 10) {
+        return "Telefon numarası 10 haneden fazla olamaz."
+    }
+    if (!phoneDigits.startsWith("5")) {
+        return "Telefon numarası 5 ile başlamalıdır."
     }
     if (relation.isBlank()) {
         return "Yakınlık seçilmelidir."

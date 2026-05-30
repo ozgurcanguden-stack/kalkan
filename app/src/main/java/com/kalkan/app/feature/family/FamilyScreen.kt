@@ -31,7 +31,6 @@ import androidx.compose.material.icons.rounded.LocationOff
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
@@ -62,6 +61,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -472,9 +475,12 @@ private fun AddEmergencyContactSheet(
                 onValueChange = onPhoneChange,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Telefon") },
+                placeholder = { Text("5XX XXX XX XX") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = RoundedCornerShape(12.dp),
+                visualTransformation = TurkishPhoneVisualTransformation(),
+                supportingText = { Text("Başında 0 olmadan giriniz", style = MaterialTheme.typography.bodySmall) },
             )
             ExposedDropdownMenuBox(
                 expanded = relationExpanded,
@@ -554,13 +560,7 @@ private fun FamilyTopBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Avatar(initial = "K")
-            Text("Ailem", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        }
-        IconButton(onClick = {}) {
-            Icon(Icons.Rounded.Settings, contentDescription = "Ayarlar", tint = MaterialTheme.colorScheme.primary)
-        }
+        Text("Ailem", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1038,5 +1038,42 @@ private fun Avatar(initial: String, size: Int = 40) {
         } else {
             Text(initial, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         }
+    }
+}
+
+// 5XXXXXXXXX → "5XX XXX XX XX" formatında gösterir
+private class TurkishPhoneVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val digits = text.text
+        val formatted = buildString {
+            digits.forEachIndexed { i, c ->
+                append(c)
+                if (i == 2 || i == 5 || i == 7) append(' ')
+            }
+        }
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                return when {
+                    offset <= 2 -> offset
+                    offset <= 5 -> offset + 1
+                    offset <= 7 -> offset + 2
+                    offset <= 10 -> offset + 3
+                    else -> formatted.length
+                }
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                return when {
+                    offset <= 3 -> offset
+                    offset <= 7 -> offset - 1
+                    offset <= 10 -> offset - 2
+                    offset <= 14 -> offset - 3
+                    else -> digits.length
+                }
+            }
+        }
+
+        return TransformedText(AnnotatedString(formatted), offsetMapping)
     }
 }

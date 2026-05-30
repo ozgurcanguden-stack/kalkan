@@ -4,6 +4,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.kalkan.app.model.AppUser
+import com.kalkan.app.model.BackupFrequency
 import com.kalkan.app.model.UserRole
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -44,7 +45,11 @@ class FirebaseUserRepository @Inject constructor(
             userRef.set(user.toFirestoreMap()).await()
             user
         } else {
-            userRef.update("lastLoginAt", now).await()
+            val updates = mutableMapOf<String, Any>("lastLoginAt" to now)
+            if (snapshot.getString("backupFrequency").isNullOrBlank()) {
+                updates["backupFrequency"] = BackupFrequency.DAILY.key
+            }
+            userRef.update(updates).await()
             requireNotNull(userRef.get().await().toAppUser())
         }
     }
@@ -66,6 +71,7 @@ class FirebaseUserRepository @Inject constructor(
         "lastFcmTokenUpdatedAt" to lastFcmTokenUpdatedAt,
         "familyGroupId" to familyGroupId,
         "familyInviteCode" to familyInviteCode,
+        "backupFrequency" to BackupFrequency.DAILY.key,
     )
 
     private fun DocumentSnapshot.toAppUser(): AppUser? {

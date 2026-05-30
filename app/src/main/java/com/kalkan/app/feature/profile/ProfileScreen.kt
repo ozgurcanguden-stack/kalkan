@@ -62,7 +62,8 @@ fun ProfileScreen(
     uiState: SettingsUiState,
     onAdminPanelClick: () -> Unit,
     onSignOut: () -> Unit,
-    onBackupClick: (deviceName: String, appVersion: String) -> Unit,
+    onBackupClick: () -> Unit,
+    onSetBackupFrequency: (com.kalkan.app.model.BackupFrequency) -> Unit,
     onDeleteAccountClick: () -> Unit,
     onTestNotificationClick: () -> Unit,
     onClearMessages: () -> Unit
@@ -72,8 +73,8 @@ fun ProfileScreen(
     // Screen State
     var activeSubScreen by remember { mutableStateOf(ProfileSubScreen.MAIN) }
 
-    // Backup State & Live Reactive Update
-    var lastBackupTime by remember { mutableStateOf("30.05.2026 15:23") }
+    // Backup State — driven from ViewModel/Firestore
+    val lastBackupTime = uiState.lastBackupFormatted
 
     // Notification State
     var vibrationEnabled by remember { mutableStateOf(true) }
@@ -83,15 +84,12 @@ fun ProfileScreen(
     // Dialogs
     var showDeleteAccountDialog1 by remember { mutableStateOf(false) }
     var showDeleteAccountDialog2 by remember { mutableStateOf(false) }
+    var showBackupScheduleDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
-            if (it.contains("yedek", ignoreCase = true) || it.contains("başarılı", ignoreCase = true)) {
-                val sdf = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault())
-                lastBackupTime = sdf.format(java.util.Date())
-            }
             snackbarHostState.showSnackbar(message = it, duration = SnackbarDuration.Short)
             onClearMessages()
         }
@@ -223,12 +221,17 @@ fun ProfileScreen(
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Text(
-                                            text = "Senkron durumu: ${if (user?.isGuest == true) "Devre dışı" else "Güncel"}",
+                                            text = "Bulut Senkronizasyonu: ${if (user?.isGuest == true) "Pasif" else "Aktif"}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                         Text(
-                                            text = "Son yedekleme: ${if (user?.isGuest == true) "-" else lastBackupTime}",
+                                            text = "Otomatik Yedekleme: ${if (user?.isGuest == true) "Kapalı" else uiState.backupFrequency.label}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = "Son Yedekleme: ${if (user?.isGuest == true) "-" else lastBackupTime}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )
@@ -243,9 +246,7 @@ fun ProfileScreen(
                                             .fillMaxWidth()
                                             .clickable {
                                                 if (user?.isGuest == false) {
-                                                    Toast
-                                                        .makeText(context, "Otomatik yedekleme günlük olarak etkindir.", Toast.LENGTH_SHORT)
-                                                        .show()
+                                                    showBackupScheduleDialog = true
                                                 }
                                             }
                                     ) {
@@ -261,7 +262,7 @@ fun ProfileScreen(
                                                     fontSize = 14.sp
                                                 )
                                                 Text(
-                                                    text = if (user?.isGuest == true) "Misafir modunda kapalı" else "Günlük",
+                                                    text = if (user?.isGuest == true) "Misafir modunda kapalı" else uiState.backupFrequency.label,
                                                     color = KalkanTextMuted,
                                                     fontSize = 12.sp
                                                 )
@@ -283,9 +284,7 @@ fun ProfileScreen(
                             if (user?.isGuest == false) {
                                 Button(
                                     onClick = {
-                                        val deviceName = android.os.Build.MODEL ?: "Android Cihaz"
-                                        val appVersion = AppVersionUtils.getAppVersion(context)
-                                        onBackupClick(deviceName, appVersion)
+                                        onBackupClick()
                                     },
                                     shape = RoundedCornerShape(24.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD0E3F5)),
@@ -620,6 +619,58 @@ fun ProfileScreen(
         }
     }
 
+    // --- BACKUP SCHEDULE DIALOG ---
+    if (showBackupScheduleDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackupScheduleDialog = false },
+            title = {
+                Text(
+                    text = "Otomatik yedeklemeler",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column {
+                    com.kalkan.app.model.BackupFrequency.entries.forEach { freq ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onSetBackupFrequency(freq)
+                                    showBackupScheduleDialog = false
+                                }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = uiState.backupFrequency == freq,
+                                onClick = {
+                                    onSetBackupFrequency(freq)
+                                    showBackupScheduleDialog = false
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = Color(0xFF0D9488)
+                                )
+                            )
+                            Text(
+                                text = freq.dialogLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showBackupScheduleDialog = false }) {
+                    Text("İptal", color = Color(0xFF0D9488), fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
+    }
+
     // --- DOUBLE CONFIRMATION DIALOGS ---
 
     // 1. Delete Account Confirmation 1
@@ -677,30 +728,12 @@ private fun ProfileTopBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(Color(0xFFE6F0FA), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Person,
-                    contentDescription = null,
-                    tint = KalkanBlue,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Text(
-                text = "Profil ve Ayarlar",
-                style = MaterialTheme.typography.headlineSmall, // Symmetrical typography
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        Text(
+            text = "Profil ve Ayarlar",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

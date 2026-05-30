@@ -98,7 +98,15 @@ class EmergencyContactsViewModel @Inject constructor(
     }
 
     fun onPhoneChange(value: String) {
-        _uiState.update { it.copy(form = it.form.copy(phone = value), formError = null) }
+        // Sadece rakam al, başındaki 0'ı çıkar
+        var digits = value.filter { it.isDigit() }.trimStart('0')
+        // 5 ile başlamak zorunda
+        if (digits.isNotEmpty() && !digits.startsWith("5")) {
+            digits = digits.dropWhile { it != '5' }
+        }
+        // Max 10 hane
+        if (digits.length > 10) digits = digits.take(10)
+        _uiState.update { it.copy(form = it.form.copy(phone = digits), formError = null) }
     }
 
     fun onRelationChange(value: String) {

@@ -62,6 +62,7 @@ import com.kalkan.app.viewmodel.AuthViewModel
 import com.kalkan.app.viewmodel.EmergencyContactsViewModel
 import com.kalkan.app.viewmodel.SafetyStatusViewModel
 import com.kalkan.app.viewmodel.FamilyGroupViewModel
+import com.kalkan.app.model.BackupFrequency
 import androidx.compose.runtime.collectAsState
 
 private val bottomRoutes = listOf(
@@ -303,6 +304,10 @@ fun KalkanNavHost() {
                 val settingsUiState by settingsViewModel.uiState.collectAsState()
                 val user = authState.user
 
+                LaunchedEffect(user?.uid) {
+                    user?.uid?.let { settingsViewModel.loadBackupSettings(it) }
+                }
+
                 ProfileScreen(
                     user = user,
                     hasAdminAccess = authState.hasAdminAccess,
@@ -314,8 +319,11 @@ fun KalkanNavHost() {
                         }
                     },
                     onSignOut = authViewModel::signOut,
-                    onBackupClick = { deviceName, appVersion ->
-                        settingsViewModel.runManualBackup(user, deviceName, appVersion)
+                    onBackupClick = {
+                        settingsViewModel.runManualBackup(user)
+                    },
+                    onSetBackupFrequency = { frequency ->
+                        user?.uid?.let { settingsViewModel.setBackupFrequency(it, frequency) }
                     },
                     onDeleteAccountClick = {
                         settingsViewModel.deleteAccount(user) {

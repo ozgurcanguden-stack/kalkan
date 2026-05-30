@@ -1,11 +1,13 @@
 package com.kalkan.app.data.settings
 
 import android.util.Log
+import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.firestore.FirebaseFirestore
 import com.kalkan.app.data.family.FamilyRepository
 import com.kalkan.app.model.AppUser
+import com.kalkan.app.model.BackupFrequency
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -15,86 +17,112 @@ class FirebaseSettingsRepository @Inject constructor(
     private val familyRepository: FamilyRepository,
 ) : SettingsRepository {
 
-    override suspend fun manualBackup(user: AppUser, deviceName: String, appVersion: String): Result<Unit> = runCatching {
+    private fun userRef(uid: String) = firestore.collection("users").document(uid)
+
+    override suspend fun manualBackup(user: AppUser): Result<Unit> = runCatching {
         val uid = user.uid
         require(uid.isNotBlank()) { "Geçersiz kullanıcı kimliği." }
         val now = System.currentTimeMillis()
 
-        Log.d("FirebaseSettings", "START: manualBackup | uid='$uid' | device='$deviceName'")
+        Log.d(TAG, "START: manualBackup | uid='$uid'")
 
-        // 1. Update users/{uid}/backup_metadata/current
-        val metadataRef = firestore.collection("users").document(uid)
-            .collection("backup_metadata").document("current")
-        
-        metadataRef.set(mapOf(
-            "lastManualBackupAt" to now,
-            "deviceName" to deviceName,
-            "appVersion" to appVersion
-        )).await()
-
-        // 2. Update users/{uid} fields
-        val userRef = firestore.collection("users").document(uid)
-        userRef.update(mapOf(
+        userRef(uid).update(mapOf(
             "lastManualBackupAt" to now,
             "lastSyncAt" to now
         )).await()
 
-        Log.d("FirebaseSettings", "SUCCESS: manualBackup completed | uid='$uid'")
-    }
+        Log.d(TAG, "SUCCESS: manualBackup completed | uid='$uid'")
+        Unit
+    }.recoverWith("Yedekleme sırasında bir hata oluştu. Lütfen tekrar deneyin.")
+
+    override suspend fun getBackupFrequency(uid: String): Result<BackupFrequency> = runCatching {
+        require(uid.isNotBlank()) { "Geçersiz kullanıcı kimliği." }
+        val snapshot = userRef(uid).get().await()
+        BackupFrequency.fromKey(snapshot.getString("backupFrequency"))
+    }.recoverWith("Yedekleme ayarları yüklenemedi.")
+
+    override suspend fun setBackupFrequency(uid: String, frequency: BackupFrequency): Result<Unit> = runCatching {
+        require(uid.isNotBlank()) { "Geçersiz kullanıcı kimliği." }
+        userRef(uid).update(mapOf(
+            "backupFrequency" to frequency.key,
+            "lastSyncAt" to System.currentTimeMillis(),
+        )).await()
+        Log.d(TAG, "Backup frequency set to '${frequency.key}' for uid='$uid'")
+        Unit
+    }.recoverWith("Yedekleme ayarı kaydedilemedi. Lütfen tekrar deneyin.")
+
+    override suspend fun getBackupTimestamps(uid: String): Result<Pair<Long?, Long?>> = runCatching {
+        require(uid.isNotBlank()) { "Geçersiz kullanıcı kimliği." }
+        val snapshot = userRef(uid).get().await()
+        Pair(snapshot.getLong("lastManualBackupAt"), snapshot.getLong("lastSyncAt"))
+    }.recoverWith("Yedekleme bilgileri alınamadı.")
 
     override suspend fun clearUserData(user: AppUser): Result<Unit> = runCatching {
         val uid = user.uid
         require(uid.isNotBlank()) { "Geçersiz kullanıcı kimliği." }
-        Log.d("FirebaseSettings", "START: clearUserData | uid='$uid'")
+        Log.d(TAG, "START: clearUserData | uid='$uid'")
 
-        // 1. Delete all emergency contacts
-        val contactsSnapshot = firestore.collection("users").document(uid)
-            .collection("emergency_contacts").get().await()
-        
+        val contactsSnapshot = userRef(uid).collection("emergency_contacts").get().await()
         if (!contactsSnapshot.isEmpty) {
             firestore.runBatch { batch ->
-                for (doc in contactsSnapshot.documents) {
-                    batch.delete(doc.reference)
-                }
+                for (doc in contactsSnapshot.documents) batch.delete(doc.reference)
             }.await()
-            Log.d("FirebaseSettings", "SUCCESS: Deleted ${contactsSnapshot.size()} emergency contacts")
+            Log.d(TAG, "Deleted ${contactsSnapshot.size()} emergency contacts")
         }
 
-        // 2. Leave family group if joined
         val familyGroupId = user.familyGroupId
         if (!familyGroupId.isNullOrBlank()) {
-            Log.d("FirebaseSettings", "Leaving family group: $familyGroupId")
+            Log.d(TAG, "Leaving family group: $familyGroupId")
             familyRepository.leaveFamilyGroup(user, familyGroupId).getOrThrow()
         }
 
-        Log.d("FirebaseSettings", "SUCCESS: clearUserData completed | uid='$uid'")
-    }
+        Log.d(TAG, "SUCCESS: clearUserData completed | uid='$uid'")
+        Unit
+    }.recoverWith("Veriler temizlenirken bir hata oluştu.")
 
     override suspend fun deleteAccount(user: AppUser): Result<Unit> = runCatching {
         val uid = user.uid
         require(uid.isNotBlank()) { "Geçersiz kullanıcı kimliği." }
         val currentUser = auth.currentUser ?: throw Exception("Aktif oturum bulunamadı.")
-        Log.d("FirebaseSettings", "START: deleteAccount | uid='$uid'")
+        Log.d(TAG, "START: deleteAccount | uid='$uid'")
 
-        // 1. Clear Firestore User Data first (Contacts and Family leaving)
         clearUserData(user).getOrThrow()
+        userRef(uid).delete().await()
+        Log.d(TAG, "Deleted users/{uid} document")
 
-        // 2. Delete users/{uid} document
-        val userRef = firestore.collection("users").document(uid)
-        userRef.delete().await()
-        Log.d("FirebaseSettings", "SUCCESS: Deleted users/{uid} document")
-
-        // 3. Delete Firebase Auth Account
         try {
             currentUser.delete().await()
-            Log.d("FirebaseSettings", "SUCCESS: Deleted Firebase Auth Account")
+            Log.d(TAG, "Deleted Firebase Auth Account")
         } catch (e: FirebaseAuthRecentLoginRequiredException) {
-            Log.w("FirebaseSettings", "Reauthentication required for user deletion", e)
-            throw Exception("Hesabınızı silmek için yakın zamanda giriş yapmış olmanız gerekir. Lütfen güvenliğiniz için çıkış yapıp tekrar giriş yaptıktan sonra hesabı silmeyi deneyin.")
+            throw Exception("Hesabınızı silmek için yakın zamanda giriş yapmaş olmanız gerekir. Lütfen çıkış yapıp tekrar giriş yaptıktan sonra deneyin.")
         } catch (e: Exception) {
-            val errMsg = e.message ?: "Hesap silinirken bilinmeyen hata oluştu."
-            Log.e("FirebaseSettings", "Auth delete error: $errMsg", e)
-            throw Exception(errMsg)
+            throw Exception("Hesap silinirken bir hata oluştu. Lütfen tekrar deneyin.")
         }
+        Unit
+    }.recoverWith("Hesap silinirken bir hata oluştu.")
+
+    // Helper: converts Firebase-internal errors to user-friendly Turkish messages.
+    // Our own explicitly thrown Exception messages are kept as-is.
+    private fun <T> Result<T>.recoverWith(userMessage: String): Result<T> {
+        val ex = exceptionOrNull() ?: return this // success — pass through
+        val msg = ex.message.orEmpty()
+        val isFirebaseInternal = ex is FirebaseException
+            || msg.isBlank()
+            || msg.contains("FirebaseFirestore", ignoreCase = true)
+            || msg.contains("FAILED_PRECONDITION")
+            || msg.contains("PERMISSION_DENIED")
+            || msg.contains("NOT_FOUND")
+            || msg.contains("com.google")
+        return if (isFirebaseInternal) {
+            Log.e(TAG, "Firebase error (hidden from user): $msg")
+            Result.failure(Exception(userMessage))
+        } else {
+            Log.e(TAG, "Settings error: $msg")
+            this // keep original Turkish message
+        }
+    }
+
+    companion object {
+        private const val TAG = "FirebaseSettings"
     }
 }
