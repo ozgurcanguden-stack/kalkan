@@ -1,5 +1,10 @@
 package com.kalkan.app.feature.home
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,12 +58,10 @@ import com.kalkan.app.core.design.theme.KalkanBlue
 import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanGreen
 import com.kalkan.app.core.design.theme.KalkanRed
-import com.kalkan.app.core.design.theme.KalkanSurface
 import com.kalkan.app.core.design.theme.KalkanTextMuted
 
 private val SuccessContainer = Color(0xFFC4EED0)
 private val OnSuccessContainer = Color(0xFF072711)
-private val QuietSurface = Color(0xFFFFFFFF)
 private val SurfaceVariant = Color(0xFFE0E3E5)
 private val ErrorContainer = Color(0xFFFFDAD6)
 private val OnErrorContainer = Color(0xFF93000A)
@@ -67,7 +71,7 @@ fun HomeScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(KalkanSurface)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -197,9 +201,10 @@ private fun EmergencyActionGrid() {
             EmergencyTile(
                 title = "SOS",
                 icon = Icons.Rounded.Warning,
-                containerColor = KalkanRed,
+                containerColor = Color(0xFFDC2626),
                 modifier = Modifier.weight(1f),
                 titleSize = 32,
+                isSos = true,
             )
         }
     }
@@ -212,10 +217,27 @@ private fun EmergencyTile(
     containerColor: Color,
     modifier: Modifier = Modifier,
     titleSize: Int = 24,
+    isSos: Boolean = false,
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "sosPulse")
+    val scale = infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (isSos) 1.04f else 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "sosScale",
+    )
+
     Button(
         onClick = {},
-        modifier = modifier.heightIn(min = 140.dp),
+        modifier = modifier
+            .heightIn(min = 140.dp)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+            },
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(containerColor = containerColor),
         contentPadding = PaddingValues(16.dp),
@@ -249,8 +271,8 @@ private fun LocationTile(modifier: Modifier = Modifier) {
         onClick = {},
         modifier = modifier.heightIn(min = 140.dp),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(2.dp, KalkanBorder),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = QuietSurface),
+        border = BorderStroke(2.dp, MaterialTheme.colorScheme.surfaceVariant),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface),
         contentPadding = PaddingValues(16.dp),
     ) {
         Column(
@@ -407,8 +429,8 @@ private fun HomeSectionCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = QuietSurface),
-        border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.55f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(
