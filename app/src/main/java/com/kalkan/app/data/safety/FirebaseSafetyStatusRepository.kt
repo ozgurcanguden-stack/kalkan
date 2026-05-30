@@ -4,6 +4,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.kalkan.app.model.SafetyStatus
 import com.kalkan.app.model.SafetyStatusType
+import com.kalkan.app.model.UserLocation
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -16,6 +17,7 @@ class FirebaseSafetyStatusRepository @Inject constructor(
         displayName: String,
         email: String?,
         statusType: SafetyStatusType,
+        location: UserLocation?,
     ): Result<SafetyStatus> = runCatching {
         val authUid = auth.currentUser?.uid
         require(!authUid.isNullOrBlank()) { "Kullanıcı oturumu bulunamadı." }
@@ -31,8 +33,10 @@ class FirebaseSafetyStatusRepository @Inject constructor(
             email = email,
             statusType = statusType,
             message = statusType.defaultMessage,
-            latitude = null,
-            longitude = null,
+            latitude = location?.latitude,
+            longitude = location?.longitude,
+            locationAccuracy = location?.accuracy,
+            locationProvider = location?.provider,
             createdAt = createdAt,
         )
         document.set(status.toFirestoreMap()).await()
@@ -51,6 +55,8 @@ class FirebaseSafetyStatusRepository @Inject constructor(
         "message" to message,
         "latitude" to latitude,
         "longitude" to longitude,
+        "locationAccuracy" to locationAccuracy,
+        "locationProvider" to locationProvider,
         "createdAt" to createdAt,
     )
 

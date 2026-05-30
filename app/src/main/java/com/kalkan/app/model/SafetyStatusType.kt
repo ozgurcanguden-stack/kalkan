@@ -27,6 +27,9 @@ enum class SafetyStatusType(
     ),
     ;
 
+    val requiresLocationAttempt: Boolean
+        get() = this == SHARE_LOCATION || this == SOS
+
     companion object {
         fun from(value: String?): SafetyStatusType? =
             entries.firstOrNull { it.value == value }

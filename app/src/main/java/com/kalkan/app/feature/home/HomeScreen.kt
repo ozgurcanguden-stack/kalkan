@@ -1,5 +1,9 @@
 package com.kalkan.app.feature.home
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -7,7 +11,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,9 +54,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -85,10 +93,56 @@ fun HomeScreen(
     onAnnouncementClick: (String) -> Unit,
     onRetryAnnouncements: () -> Unit,
     safetyStatusState: SafetyStatusUiState,
-    onSafetyStatusAction: (SafetyStatusType) -> Unit,
+    onSubmitSafetyStatus: (SafetyStatusType) -> Unit,
+    onSubmitSafetyStatusWithLocation: (SafetyStatusType, Boolean) -> Unit,
     onDismissSafetyMessage: () -> Unit,
 ) {
+    val context = LocalContext.current
+    var pendingLocationStatusType by remember { mutableStateOf<SafetyStatusType?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    fun hasLocationPermission(): Boolean {
+        val fineGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        return fineGranted || coarseGranted
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        val granted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        val statusType = pendingLocationStatusType
+        pendingLocationStatusType = null
+        if (statusType != null) {
+            onSubmitSafetyStatusWithLocation(statusType, granted)
+        }
+    }
+
+    fun handleSafetyStatusClick(statusType: SafetyStatusType) {
+        when {
+            statusType.requiresLocationAttempt -> {
+                if (hasLocationPermission()) {
+                    onSubmitSafetyStatusWithLocation(statusType, true)
+                } else {
+                    pendingLocationStatusType = statusType
+                    locationPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                        ),
+                    )
+                }
+            }
+            else -> onSubmitSafetyStatus(statusType)
+        }
+    }
 
     LaunchedEffect(safetyStatusState.snackbarMessage) {
         val message = safetyStatusState.snackbarMessage ?: return@LaunchedEffect
@@ -112,10 +166,10 @@ fun HomeScreen(
             StatusCard()
             EmergencyActionGrid(
                 isSubmitting = safetyStatusState.isSubmitting,
-                onSafeClick = { onSafetyStatusAction(SafetyStatusType.SAFE) },
-                onNeedHelpClick = { onSafetyStatusAction(SafetyStatusType.NEED_HELP) },
-                onShareLocationClick = { onSafetyStatusAction(SafetyStatusType.SHARE_LOCATION) },
-                onSosClick = { onSafetyStatusAction(SafetyStatusType.SOS) },
+                onSafeClick = { handleSafetyStatusClick(SafetyStatusType.SAFE) },
+                onNeedHelpClick = { handleSafetyStatusClick(SafetyStatusType.NEED_HELP) },
+                onShareLocationClick = { handleSafetyStatusClick(SafetyStatusType.SHARE_LOCATION) },
+                onSosClick = { handleSafetyStatusClick(SafetyStatusType.SOS) },
             )
             AnnouncementsSection(
                 state = announcementsState,

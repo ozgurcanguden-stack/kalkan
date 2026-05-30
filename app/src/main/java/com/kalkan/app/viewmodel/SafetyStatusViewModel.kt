@@ -2,12 +2,18 @@ package com.kalkan.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kalkan.app.data.location.LocationFetchResult
+import com.kalkan.app.data.location.LocationRepository
+import com.kalkan.app.data.safety.LOCATION_PERMISSION_DENIED_MESSAGE
+import com.kalkan.app.data.safety.LOCATION_SAVED_MESSAGE
+import com.kalkan.app.data.safety.LOCATION_UNAVAILABLE_MESSAGE
 import com.kalkan.app.data.safety.SAFETY_STATUS_AUTH_USER_MESSAGE
 import com.kalkan.app.data.safety.SAFETY_STATUS_SAVE_USER_MESSAGE
 import com.kalkan.app.data.safety.SafetyStatusRepository
 import com.kalkan.app.data.safety.logSafetyStatusError
 import com.kalkan.app.model.AppUser
 import com.kalkan.app.model.SafetyStatusType
+import com.kalkan.app.model.UserLocation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +28,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SafetyStatusViewModel @Inject constructor(
     private val safetyStatusRepository: SafetyStatusRepository,
+    private val locationRepository: LocationRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SafetyStatusUiState())
     val uiState: StateFlow<SafetyStatusUiState> = _uiState.asStateFlow()
@@ -30,6 +37,26 @@ class SafetyStatusViewModel @Inject constructor(
     private var submitJob: Job? = null
 
     fun submitSafetyStatus(statusType: SafetyStatusType, user: AppUser?) {
+        submit(statusType, user, permissionGranted = null)
+    }
+
+    fun submitSafetyStatusWithLocation(
+        statusType: SafetyStatusType,
+        user: AppUser?,
+        permissionGranted: Boolean,
+    ) {
+        if (!statusType.requiresLocationAttempt) {
+            submitSafetyStatus(statusType, user)
+            return
+        }
+        submit(statusType, user, permissionGranted = permissionGranted)
+    }
+
+    private fun submit(
+        statusType: SafetyStatusType,
+        user: AppUser?,
+        permissionGranted: Boolean?,
+    ) {
         if (submitJob?.isActive == true) {
             return
         }
@@ -47,16 +74,28 @@ class SafetyStatusViewModel @Inject constructor(
         submitJob = viewModelScope.launch {
             submitMutex.withLock {
                 _uiState.update { it.copy(isSubmitting = true) }
+
+                val (userLocation, locationResult) = resolveLocationIfNeeded(
+                    statusType = statusType,
+                    permissionGranted = permissionGranted,
+                )
+
+                val resolvedMessage = buildSnackbarMessage(
+                    statusType = statusType,
+                    locationResult = locationResult,
+                )
+
                 safetyStatusRepository.createSafetyStatus(
                     uid = user.uid,
                     displayName = user.displayName,
                     email = user.email,
                     statusType = statusType,
+                    location = userLocation,
                 ).onSuccess {
                     _uiState.update {
                         it.copy(
                             isSubmitting = false,
-                            snackbarMessage = statusType.successMessage,
+                            snackbarMessage = resolvedMessage,
                             isError = false,
                         )
                     }
@@ -71,6 +110,44 @@ class SafetyStatusViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    private suspend fun resolveLocationIfNeeded(
+        statusType: SafetyStatusType,
+        permissionGranted: Boolean?,
+    ): Pair<UserLocation?, LocationFetchResult?> {
+        if (!statusType.requiresLocationAttempt) {
+            return null to null
+        }
+
+        val fetchResult = locationRepository.getCurrentLocation(
+            hasPermission = permissionGranted == true,
+        )
+
+        return when (fetchResult) {
+            is LocationFetchResult.Success -> fetchResult.location to fetchResult
+            LocationFetchResult.PermissionDenied -> null to fetchResult
+            LocationFetchResult.Unavailable -> null to fetchResult
+        }
+    }
+
+    private fun buildSnackbarMessage(
+        statusType: SafetyStatusType,
+        locationResult: LocationFetchResult?,
+    ): String {
+        if (locationResult == null) {
+            return statusType.successMessage
+        }
+
+        return when (locationResult) {
+            is LocationFetchResult.Success -> when (statusType) {
+                SafetyStatusType.SOS -> "${statusType.successMessage} $LOCATION_SAVED_MESSAGE"
+                SafetyStatusType.SHARE_LOCATION -> LOCATION_SAVED_MESSAGE
+                else -> statusType.successMessage
+            }
+            LocationFetchResult.PermissionDenied -> LOCATION_PERMISSION_DENIED_MESSAGE
+            LocationFetchResult.Unavailable -> LOCATION_UNAVAILABLE_MESSAGE
         }
     }
 

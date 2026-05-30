@@ -187,8 +187,15 @@ fun KalkanNavHost() {
                         )
                     },
                     safetyStatusState = safetyStatusState,
-                    onSafetyStatusAction = { statusType ->
+                    onSubmitSafetyStatus = { statusType ->
                         safetyStatusViewModel.submitSafetyStatus(statusType, user)
+                    },
+                    onSubmitSafetyStatusWithLocation = { statusType, permissionGranted ->
+                        safetyStatusViewModel.submitSafetyStatusWithLocation(
+                            statusType = statusType,
+                            user = user,
+                            permissionGranted = permissionGranted,
+                        )
                     },
                     onDismissSafetyMessage = safetyStatusViewModel::clearSnackbarMessage,
                 )
