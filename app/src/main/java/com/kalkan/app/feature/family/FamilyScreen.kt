@@ -70,8 +70,12 @@ import com.kalkan.app.core.design.theme.KalkanBlue
 import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanGreen
 import com.kalkan.app.core.design.theme.KalkanTextMuted
+import androidx.compose.ui.platform.LocalContext
+import com.kalkan.app.model.EmergencyContact
 import com.kalkan.app.model.EmergencyContactRelations
 import com.kalkan.app.ui.components.EmergencyContactCard
+import com.kalkan.app.util.EmergencyIntentHelper
+import com.kalkan.app.util.WhatsAppOpenResult
 import com.kalkan.app.viewmodel.AddEmergencyContactFormState
 import com.kalkan.app.viewmodel.EmergencyContactsUiState
 
@@ -90,8 +94,32 @@ fun FamilyScreen(
     onPrimaryChange: (Boolean) -> Unit,
     onSaveContact: () -> Unit,
     onDismissMessage: () -> Unit,
+    onShowActionMessage: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val emergencyMessage = contactsState.emergencyMessage
+
+    fun handleCall(contact: EmergencyContact) {
+        if (!EmergencyIntentHelper.openDialer(context, contact.phone)) {
+            onShowActionMessage("Arama başlatılamadı.")
+        }
+    }
+
+    fun handleSms(contact: EmergencyContact) {
+        if (!EmergencyIntentHelper.openSms(context, contact.phone, emergencyMessage)) {
+            onShowActionMessage("SMS uygulaması açılamadı.")
+        }
+    }
+
+    fun handleWhatsApp(contact: EmergencyContact) {
+        when (EmergencyIntentHelper.openWhatsApp(context, contact.phone, emergencyMessage)) {
+            WhatsAppOpenResult.Opened -> Unit
+            WhatsAppOpenResult.NotInstalled -> onShowActionMessage("WhatsApp açılamadı. Lütfen telefonunuzda WhatsApp kurulu ve güncel olduğundan emin olun.")
+            WhatsAppOpenResult.InvalidPhone -> onShowActionMessage("Geçerli bir telefon numarası yok.")
+            WhatsAppOpenResult.Failed -> onShowActionMessage("WhatsApp açılamadı.")
+        }
+    }
 
     LaunchedEffect(contactsState.snackbarMessage) {
         val message = contactsState.snackbarMessage ?: return@LaunchedEffect
@@ -114,6 +142,9 @@ fun FamilyScreen(
                 state = contactsState,
                 onAddContactClick = onAddContactClick,
                 onDeleteContact = onDeleteContact,
+                onCallContact = { handleCall(it) },
+                onSmsContact = { handleSms(it) },
+                onWhatsAppContact = { handleWhatsApp(it) },
             )
             FamilyMembers()
             FamilyMapPreview()
@@ -148,6 +179,9 @@ private fun EmergencyContactsSection(
     state: EmergencyContactsUiState,
     onAddContactClick: () -> Unit,
     onDeleteContact: (String) -> Unit,
+    onCallContact: (EmergencyContact) -> Unit,
+    onSmsContact: (EmergencyContact) -> Unit,
+    onWhatsAppContact: (EmergencyContact) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -233,6 +267,9 @@ private fun EmergencyContactsSection(
                     EmergencyContactCard(
                         contact = contact,
                         onDeleteClick = { onDeleteContact(contact.id) },
+                        onCallClick = { onCallContact(contact) },
+                        onSmsClick = { onSmsContact(contact) },
+                        onWhatsAppClick = { onWhatsAppContact(contact) },
                     )
                 }
             }

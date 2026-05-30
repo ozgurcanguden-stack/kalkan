@@ -236,6 +236,7 @@ fun KalkanNavHost() {
                     onPrimaryChange = emergencyContactsViewModel::onPrimaryChange,
                     onSaveContact = emergencyContactsViewModel::saveContact,
                     onDismissMessage = emergencyContactsViewModel::clearSnackbarMessage,
+                    onShowActionMessage = emergencyContactsViewModel::showActionMessage,
                 )
             }
             composable(KalkanRoute.Profile.route) {

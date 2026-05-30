@@ -12,4 +12,6 @@ interface SafetyStatusRepository {
         statusType: SafetyStatusType,
         location: UserLocation? = null,
     ): Result<SafetyStatus>
+
+    suspend fun getLatestSafetyStatus(uid: String): Result<SafetyStatus?>
 }

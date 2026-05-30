@@ -1,7 +1,9 @@
 package com.kalkan.app.data.safety
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.kalkan.app.model.SafetyStatus
 import com.kalkan.app.model.SafetyStatusType
 import com.kalkan.app.model.UserLocation
@@ -43,8 +45,38 @@ class FirebaseSafetyStatusRepository @Inject constructor(
         status
     }
 
+    override suspend fun getLatestSafetyStatus(uid: String): Result<SafetyStatus?> = runCatching {
+        require(uid.isNotBlank()) { "Kullanıcı kimliği boş olamaz." }
+
+        val snapshot = safetyStatusCollection
+            .whereEqualTo("uid", uid)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(1)
+            .get()
+            .await()
+
+        snapshot.documents.firstOrNull()?.toSafetyStatus()
+    }
+
     private val safetyStatusCollection
         get() = firestore.collection(COLLECTION)
+
+    private fun DocumentSnapshot.toSafetyStatus(): SafetyStatus? {
+        if (!exists()) return null
+        return SafetyStatus(
+            id = getString("id").orEmpty().ifBlank { id },
+            uid = getString("uid").orEmpty(),
+            displayName = getString("displayName").orEmpty(),
+            email = getString("email"),
+            statusType = SafetyStatusType.from(getString("statusType")) ?: SafetyStatusType.SAFE,
+            message = getString("message").orEmpty(),
+            latitude = getDouble("latitude"),
+            longitude = getDouble("longitude"),
+            locationAccuracy = getDouble("locationAccuracy")?.toFloat(),
+            locationProvider = getString("locationProvider"),
+            createdAt = getLong("createdAt") ?: 0L,
+        )
+    }
 
     private fun SafetyStatus.toFirestoreMap(): Map<String, Any?> = mapOf(
         "id" to id,
