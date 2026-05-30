@@ -10,6 +10,7 @@ interface FamilyRepository {
     fun observeFamilyMembers(groupId: String): Flow<List<FamilyMember>>
     suspend fun createFamilyGroup(user: AppUser, groupName: String): Result<FamilyGroup>
     suspend fun joinFamilyGroup(user: AppUser, inviteCode: String): Result<FamilyGroup>
+    suspend fun syncCurrentMemberProfile(user: AppUser, groupId: String): Result<Unit>
     suspend fun leaveFamilyGroup(user: AppUser, groupId: String): Result<Unit>
     suspend fun deleteFamilyGroup(user: AppUser, groupId: String): Result<Unit>
 }

@@ -93,6 +93,7 @@ class FirebaseFamilyRepository @Inject constructor(
             uid = user.uid,
             displayName = user.displayName.ifBlank { "Misafir Kullanıcı" },
             email = user.email,
+            photoUrl = user.photoUrl,
             role = FamilyRole.OWNER,
             joinedAt = now
         )
@@ -168,6 +169,7 @@ class FirebaseFamilyRepository @Inject constructor(
             uid = user.uid,
             displayName = user.displayName.ifBlank { "Misafir Kullanıcı" },
             email = user.email,
+            photoUrl = user.photoUrl,
             role = FamilyRole.MEMBER,
             joinedAt = now
         )
@@ -230,6 +232,7 @@ class FirebaseFamilyRepository @Inject constructor(
             uid = getString("uid").orEmpty(),
             displayName = getString("displayName").orEmpty(),
             email = getString("email"),
+            photoUrl = getString("photoUrl"),
             phone = getString("phone"),
             role = FamilyRole.from(getString("role")),
             joinedAt = getLong("joinedAt") ?: 0L,
@@ -245,6 +248,7 @@ class FirebaseFamilyRepository @Inject constructor(
         "uid" to uid,
         "displayName" to displayName,
         "email" to email,
+        "photoUrl" to photoUrl,
         "phone" to phone,
         "role" to role.value,
         "joinedAt" to joinedAt,
@@ -254,6 +258,17 @@ class FirebaseFamilyRepository @Inject constructor(
         "lastStatusLongitude" to lastStatusLongitude,
         "lastStatusAt" to lastStatusAt,
     )
+
+    override suspend fun syncCurrentMemberProfile(user: AppUser, groupId: String): Result<Unit> = runCatching {
+        val photoUrl = user.photoUrl?.takeIf { it.isNotBlank() } ?: return@runCatching
+        require(user.uid.isNotBlank() && groupId.isNotBlank())
+        val memberRef = firestore.collection("family_groups").document(groupId)
+            .collection("members").document(user.uid)
+        val snapshot = memberRef.get().await()
+        if (snapshot.exists() && snapshot.getString("photoUrl") != photoUrl) {
+            memberRef.update("photoUrl", photoUrl).await()
+        }
+    }
 
     override suspend fun leaveFamilyGroup(user: AppUser, groupId: String): Result<Unit> = runCatching {
         val trimmedGroupId = groupId.trim()

@@ -49,6 +49,10 @@ class FirebaseUserRepository @Inject constructor(
             if (snapshot.getString("backupFrequency").isNullOrBlank()) {
                 updates["backupFrequency"] = BackupFrequency.DAILY.key
             }
+            val authPhotoUrl = firebaseUser.photoUrl?.toString()?.takeIf { it.isNotBlank() }
+            if (authPhotoUrl != null && snapshot.getString("photoUrl") != authPhotoUrl) {
+                updates["photoUrl"] = authPhotoUrl
+            }
             userRef.update(updates).await()
             requireNotNull(userRef.get().await().toAppUser())
         }

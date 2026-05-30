@@ -40,6 +40,7 @@ import com.kalkan.app.model.AppUser
 import com.kalkan.app.viewmodel.SettingsUiState
 import com.kalkan.app.util.AppVersionUtils
 import com.kalkan.app.ui.components.AppTopNotificationCenter
+import com.kalkan.app.ui.components.RemoteProfileImage
 
 private val ProfileNavy = Color(0xFF131B2E)
 private val KalkanLightBlue = Color(0xFFF3F8FC) // Sleek soft blue card background for Kalkan theme
@@ -888,14 +889,20 @@ private fun ProfileHeaderCard(
                 .padding(16.dp)
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
+                RemoteProfileImage(
+                    photoUrl = user?.photoUrl,
+                    shape = CircleShape,
                     modifier = Modifier
                         .size(56.dp)
                         .background(Color.White.copy(alpha = 0.16f), CircleShape)
                         .border(BorderStroke(2.dp, Color.White.copy(alpha = 0.26f)), CircleShape),
-                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                    }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(

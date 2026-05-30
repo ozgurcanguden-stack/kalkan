@@ -48,6 +48,9 @@ class FamilyGroupViewModel @Inject constructor(
 
         val groupId = user.familyGroupId
         _uiState.update { it.copy(isLoading = true, hasGroup = true, error = null) }
+        viewModelScope.launch {
+            familyRepository.syncCurrentMemberProfile(user, groupId)
+        }
 
         // Observe Group details
         observeGroupJob?.cancel()

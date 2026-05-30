@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,13 +19,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Help
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.HealthAndSafety
@@ -31,6 +40,7 @@ import androidx.compose.material.icons.rounded.LocationOff
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
@@ -43,13 +53,18 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,6 +89,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.kalkan.app.core.design.theme.KalkanBlue
 import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanGreen
@@ -88,6 +105,7 @@ import com.kalkan.app.model.FamilyMember
 import com.kalkan.app.model.FamilyRole
 import com.kalkan.app.model.SafetyStatusType
 import com.kalkan.app.ui.components.EmergencyContactCard
+import com.kalkan.app.ui.components.RemoteProfileImage
 import com.kalkan.app.ui.components.AppTopNotificationCenter
 import com.kalkan.app.util.EmergencyIntentHelper
 import com.kalkan.app.util.MapIntentHelper
@@ -320,7 +338,7 @@ fun FamilyScreen(
     }
 
     if (contactsState.showAddSheet) {
-        AddEmergencyContactSheet(
+        AddEmergencyContactScreen(
             form = contactsState.form,
             formError = contactsState.formError,
             isSaving = contactsState.isSaving,
@@ -434,6 +452,282 @@ private fun EmergencyContactsSection(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AddEmergencyContactScreen(
+    form: AddEmergencyContactFormState,
+    formError: String?,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onNameChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onRelationChange: (String) -> Unit,
+    onPrimaryChange: (Boolean) -> Unit,
+    onSaveContact: () -> Unit,
+) {
+    val isDarkTheme = isSystemInDarkTheme()
+    val screenBackground = if (isDarkTheme) Color(0xFF0F172A) else MaterialTheme.colorScheme.background
+    val inputBackground = if (isDarkTheme) Color.White.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface
+    val inputBorder = if (isDarkTheme) Color.White.copy(alpha = 0.15f) else KalkanBorder
+    val mutedText = if (isDarkTheme) Color(0xFFCBD5E1) else KalkanTextMuted
+    val relations = listOf("Aile", "Arkada\u015f", "Kom\u015fu", "Di\u011fer")
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = KalkanBlue,
+        unfocusedBorderColor = inputBorder,
+        focusedContainerColor = inputBackground,
+        unfocusedContainerColor = inputBackground,
+        focusedLeadingIconColor = mutedText,
+        unfocusedLeadingIconColor = mutedText,
+    )
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(screenBackground)
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Geri",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                    )
+                }
+                Text(
+                    text = "Ki\u015fi Ekle",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.size(48.dp))
+            }
+            HorizontalDivider(color = inputBorder.copy(alpha = 0.55f))
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .background(inputBackground, CircleShape)
+                                .border(1.dp, inputBorder, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.size(42.dp),
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(30.dp)
+                                .background(KalkanBlue, CircleShape)
+                                .border(1.dp, screenBackground, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.CameraAlt,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(17.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Foto\u011fraf Ekle",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
+                EmergencyContactFormLabel(text = "Ad Soyad") {
+                    OutlinedTextField(
+                        value = form.name,
+                        onValueChange = onNameChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("\u00d6rn: Ay\u015fe Y\u0131lmaz") },
+                        leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = fieldColors,
+                    )
+                }
+
+                EmergencyContactFormLabel(text = "Telefon Numaras\u0131") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .width(88.dp)
+                                .height(56.dp)
+                                .background(inputBackground, RoundedCornerShape(10.dp))
+                                .border(1.dp, inputBorder, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("+90", color = MaterialTheme.colorScheme.onBackground)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(
+                                imageVector = Icons.Rounded.ArrowDropDown,
+                                contentDescription = null,
+                                tint = mutedText,
+                            )
+                        }
+                        OutlinedTextField(
+                            value = form.phone,
+                            onValueChange = onPhoneChange,
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("5XX XXX XX XX") },
+                            leadingIcon = { Icon(Icons.Rounded.Call, contentDescription = null) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            visualTransformation = TurkishPhoneVisualTransformation(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = fieldColors,
+                        )
+                    }
+                }
+
+                EmergencyContactFormLabel(text = "Yak\u0131nl\u0131k Derecesi") {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        relations.forEach { option ->
+                            FilterChip(
+                                selected = form.relation == option,
+                                onClick = { onRelationChange(option) },
+                                label = { Text(option, fontWeight = FontWeight.SemiBold) },
+                                shape = CircleShape,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = KalkanBlue,
+                                    selectedLabelColor = Color.White,
+                                ),
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = inputBackground,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, inputBorder),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "\u00d6ncelikli Ki\u015fi",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = "Acil durumlarda ilk ula\u015f\u0131lacak ki\u015fi",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = mutedText,
+                            )
+                        }
+                        Switch(checked = form.isPrimary, onCheckedChange = onPrimaryChange)
+                    }
+                }
+
+                if (formError != null) {
+                    Text(
+                        text = formError,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, screenBackground),
+                        ),
+                    )
+                    .padding(horizontal = 24.dp, vertical = 20.dp),
+            ) {
+                Button(
+                    onClick = onSaveContact,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    enabled = !isSaving,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = KalkanBlue),
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Icon(Icons.Rounded.Save, contentDescription = null)
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("Kaydet", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyContactFormLabel(
+    text: String,
+    content: @Composable () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.SemiBold,
+        )
+        content()
     }
 }
 
@@ -884,7 +1178,11 @@ private fun FamilyMemberCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Avatar(initial = member.displayName.firstOrNull()?.toString() ?: "U", size = 48)
+                    Avatar(
+                        initial = member.displayName.firstOrNull()?.toString() ?: "U",
+                        photoUrl = member.photoUrl,
+                        size = 48,
+                    )
                     
                     Column(
                         modifier = Modifier.weight(1f),
@@ -1057,15 +1355,21 @@ private fun FamilyMapPreview() {
 }
 
 @Composable
-private fun Avatar(initial: String, size: Int = 40) {
-    Box(
-        modifier = Modifier.size(size.dp).background(Color(0xFFE6E8EA), CircleShape),
-        contentAlignment = Alignment.Center,
+private fun Avatar(initial: String, photoUrl: String? = null, size: Int = 40) {
+    RemoteProfileImage(
+        photoUrl = photoUrl,
+        shape = CircleShape,
+        modifier = Modifier.size(size.dp),
     ) {
-        if (initial == "K") {
-            Icon(Icons.Rounded.Person, contentDescription = null, tint = KalkanTextMuted)
-        } else {
-            Text(initial, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color(0xFFE6E8EA), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (initial == "K") {
+                Icon(Icons.Rounded.Person, contentDescription = null, tint = KalkanTextMuted)
+            } else {
+                Text(initial, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            }
         }
     }
 }

@@ -76,6 +76,7 @@ import com.kalkan.app.core.design.theme.KalkanTextMuted
 import com.kalkan.app.model.SafetyStatusType
 import com.kalkan.app.ui.components.AnnouncementCard
 import com.kalkan.app.ui.components.AppTopNotificationCenter
+import com.kalkan.app.ui.components.RemoteProfileImage
 import com.kalkan.app.viewmodel.AnnouncementsUiState
 import com.kalkan.app.viewmodel.SafetyStatusUiState
 import androidx.compose.ui.text.style.TextOverflow
@@ -243,10 +244,21 @@ private fun TopGreetingBar(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "\uD83C\uDDF9\uD83C\uDDF7",
-                fontSize = 28.sp,
-            )
+            RemoteProfileImage(
+                photoUrl = user?.photoUrl,
+                shape = CircleShape,
+                modifier = Modifier.size(44.dp),
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "\uD83C\uDDF9\uD83C\uDDF7",
+                        fontSize = 28.sp,
+                    )
+                }
+            }
             Column {
                 Text(
                     text = greeting,

@@ -4,6 +4,7 @@ data class FamilyMember(
     val uid: String = "",
     val displayName: String = "",
     val email: String? = null,
+    val photoUrl: String? = null,
     val phone: String? = null,
     val role: FamilyRole = FamilyRole.MEMBER,
     val joinedAt: Long = 0L,
