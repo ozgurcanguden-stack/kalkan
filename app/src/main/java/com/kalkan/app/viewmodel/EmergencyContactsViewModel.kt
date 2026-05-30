@@ -71,25 +71,26 @@ class EmergencyContactsViewModel @Inject constructor(
         }
     }
 
-    fun showAddSheet() {
+    fun prepareAddForm(): Boolean {
         if (_uiState.value.contacts.size >= MAX_EMERGENCY_CONTACTS) {
             _uiState.update {
                 it.copy(snackbarMessage = "En fazla $MAX_EMERGENCY_CONTACTS acil kişi ekleyebilirsiniz.")
             }
-            return
+            return false
         }
         _uiState.update {
             it.copy(
-                showAddSheet = true,
                 form = AddEmergencyContactFormState(),
                 formError = null,
+                isSaving = false,
             )
         }
+        return true
     }
 
-    fun dismissAddSheet() {
+    fun resetAddForm() {
         _uiState.update {
-            it.copy(showAddSheet = false, formError = null, isSaving = false)
+            it.copy(formError = null, isSaving = false, form = AddEmergencyContactFormState())
         }
     }
 
@@ -117,7 +118,7 @@ class EmergencyContactsViewModel @Inject constructor(
         _uiState.update { it.copy(form = it.form.copy(isPrimary = value), formError = null) }
     }
 
-    fun saveContact() {
+    fun saveContact(onSuccess: () -> Unit = {}) {
         val uid = activeUid
         if (uid.isNullOrBlank()) {
             _uiState.update { it.copy(formError = "Acil kişi eklemek için giriş yapmalısınız.") }
@@ -152,11 +153,11 @@ class EmergencyContactsViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isSaving = false,
-                        showAddSheet = false,
                         snackbarMessage = "Acil kişi kaydedildi.",
                         form = AddEmergencyContactFormState(),
                     )
                 }
+                onSuccess()
             }.onFailure { error ->
                 Log.e(TAG, "Failed to add emergency contact", error)
                 _uiState.update {
@@ -231,7 +232,6 @@ data class EmergencyContactsUiState(
     val emergencyMessage: String = EmergencyIntentHelper.DEFAULT_EMERGENCY_MESSAGE,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
-    val showAddSheet: Boolean = false,
     val isSaving: Boolean = false,
     val form: AddEmergencyContactFormState = AddEmergencyContactFormState(),
     val formError: String? = null,

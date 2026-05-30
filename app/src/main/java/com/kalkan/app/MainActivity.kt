@@ -1,9 +1,12 @@
 package com.kalkan.app
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +23,16 @@ class MainActivity : ComponentActivity() {
     private var notificationNavigationTarget by mutableStateOf<NotificationNavigationTarget?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(
+                lightScrim = Color.argb(0xFF, 0xF8, 0xFA, 0xFC),
+                darkScrim = Color.argb(0xFF, 0x0F, 0x17, 0x2A),
+            ),
+            navigationBarStyle = SystemBarStyle.auto(
+                lightScrim = Color.argb(0xFF, 0xFF, 0xFF, 0xFF),
+                darkScrim = Color.argb(0xFF, 0x0F, 0x17, 0x2A),
+            ),
+        )
         super.onCreate(savedInstanceState)
         notificationNavigationTarget = NotificationNavigation.fromIntent(intent)
         setContent {

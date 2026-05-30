@@ -45,6 +45,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kalkan.app.feature.earthquakes.EarthquakesScreen
+import com.kalkan.app.feature.family.AddEmergencyContactScreen
 import com.kalkan.app.feature.family.FamilyScreen
 import com.kalkan.app.feature.home.HomeScreen
 import com.kalkan.app.feature.map.MapScreen
@@ -258,13 +259,7 @@ fun KalkanNavHost(
                     },
                     contacts = contactsState.contacts,
                     onAddContactClick = {
-                        navController.navigate(KalkanRoute.Family.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                        navController.navigate(KalkanRoute.AddEmergencyContact.route)
                     }
                 )
             }
@@ -314,14 +309,10 @@ fun KalkanNavHost(
                     contactsState = contactsState,
                     familyGroupState = familyGroupState,
                     currentUserUid = userUid.orEmpty(),
-                    onAddContactClick = emergencyContactsViewModel::showAddSheet,
+                    onAddContactClick = {
+                        navController.navigate(KalkanRoute.AddEmergencyContact.route)
+                    },
                     onDeleteContact = emergencyContactsViewModel::deleteContact,
-                    onDismissAddSheet = emergencyContactsViewModel::dismissAddSheet,
-                    onNameChange = emergencyContactsViewModel::onNameChange,
-                    onPhoneChange = emergencyContactsViewModel::onPhoneChange,
-                    onRelationChange = emergencyContactsViewModel::onRelationChange,
-                    onPrimaryChange = emergencyContactsViewModel::onPrimaryChange,
-                    onSaveContact = emergencyContactsViewModel::saveContact,
                     onDismissMessage = emergencyContactsViewModel::clearSnackbarMessage,
                     onShowActionMessage = emergencyContactsViewModel::showActionMessage,
                     onCreateFamilyGroup = familyGroupViewModel::createFamilyGroup,
@@ -330,6 +321,40 @@ fun KalkanNavHost(
                     onClearFamilySuccessMessage = familyGroupViewModel::clearActionSuccessMessage,
                     onLeaveFamilyGroup = familyGroupViewModel::leaveFamilyGroup,
                     onDeleteFamilyGroup = familyGroupViewModel::deleteFamilyGroup,
+                )
+            }
+            composable(KalkanRoute.AddEmergencyContact.route) {
+                val emergencyContactsViewModel: EmergencyContactsViewModel = hiltViewModel()
+                val contactsState by emergencyContactsViewModel.uiState.collectAsState()
+                val user = authState.user
+
+                LaunchedEffect(user?.uid) {
+                    emergencyContactsViewModel.startObserving(user?.uid)
+                }
+
+                LaunchedEffect(Unit) {
+                    if (!emergencyContactsViewModel.prepareAddForm()) {
+                        navController.popBackStack()
+                    }
+                }
+
+                AddEmergencyContactScreen(
+                    form = contactsState.form,
+                    formError = contactsState.formError,
+                    isSaving = contactsState.isSaving,
+                    onBackClick = {
+                        emergencyContactsViewModel.resetAddForm()
+                        navController.popBackStack()
+                    },
+                    onNameChange = emergencyContactsViewModel::onNameChange,
+                    onPhoneChange = emergencyContactsViewModel::onPhoneChange,
+                    onRelationChange = emergencyContactsViewModel::onRelationChange,
+                    onPrimaryChange = emergencyContactsViewModel::onPrimaryChange,
+                    onSaveContact = {
+                        emergencyContactsViewModel.saveContact {
+                            navController.popBackStack()
+                        }
+                    },
                 )
             }
             composable(KalkanRoute.Profile.route) {
