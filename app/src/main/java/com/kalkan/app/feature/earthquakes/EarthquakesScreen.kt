@@ -74,6 +74,7 @@ private val OnErrorContainer = Color(0xFF93000A)
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun EarthquakesScreen(
+    onEarthquakeClick: (String) -> Unit = {},
     viewModel: EarthquakeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -111,7 +112,11 @@ fun EarthquakesScreen(
                 selectedFilter = selectedFilter,
                 onFilterClick = viewModel::selectFilter,
             )
-            EarthquakeContent(uiState = uiState, onRetry = viewModel::refresh)
+            EarthquakeContent(
+                uiState = uiState,
+                onRetry = viewModel::refresh,
+                onEarthquakeClick = onEarthquakeClick,
+            )
             Spacer(modifier = Modifier.height(12.dp))
         }
         PullRefreshIndicator(
@@ -248,12 +253,20 @@ private fun FilterChip(
 private fun EarthquakeContent(
     uiState: EarthquakeUiState,
     onRetry: () -> Unit,
+    onEarthquakeClick: (String) -> Unit,
 ) {
     when (uiState) {
         EarthquakeUiState.Loading -> LoadingState()
         is EarthquakeUiState.Empty -> EmptyState(onRetry = onRetry)
-        is EarthquakeUiState.Success -> EarthquakeList(earthquakes = uiState.earthquakes)
-        is EarthquakeUiState.Error -> ErrorState(uiState = uiState, onRetry = onRetry)
+        is EarthquakeUiState.Success -> EarthquakeList(
+            earthquakes = uiState.earthquakes,
+            onEarthquakeClick = onEarthquakeClick,
+        )
+        is EarthquakeUiState.Error -> ErrorState(
+            uiState = uiState,
+            onRetry = onRetry,
+            onEarthquakeClick = onEarthquakeClick,
+        )
     }
 }
 
@@ -282,6 +295,7 @@ private fun EmptyState(onRetry: () -> Unit) {
 private fun ErrorState(
     uiState: EarthquakeUiState.Error,
     onRetry: () -> Unit,
+    onEarthquakeClick: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         StatusCard(
@@ -297,7 +311,10 @@ private fun ErrorState(
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
             )
-            EarthquakeList(earthquakes = uiState.cachedEarthquakes)
+            EarthquakeList(
+                earthquakes = uiState.cachedEarthquakes,
+                onEarthquakeClick = onEarthquakeClick,
+            )
         }
     }
 }
@@ -337,21 +354,37 @@ private fun StatusCard(
 }
 
 @Composable
-private fun EarthquakeList(earthquakes: List<Earthquake>) {
+private fun EarthquakeList(
+    earthquakes: List<Earthquake>,
+    onEarthquakeClick: (String) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         earthquakes.forEach { earthquake ->
-            EarthquakeCard(earthquake = earthquake)
+            EarthquakeCard(
+                earthquake = earthquake,
+                onClick = {
+                    if (earthquake.id.isNotBlank()) {
+                        onEarthquakeClick(earthquake.id)
+                    }
+                },
+            )
         }
     }
 }
 
 @Composable
-private fun EarthquakeCard(earthquake: Earthquake) {
+private fun EarthquakeCard(
+    earthquake: Earthquake,
+    onClick: () -> Unit,
+) {
     val badgeColors = earthquake.badgeColors()
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier

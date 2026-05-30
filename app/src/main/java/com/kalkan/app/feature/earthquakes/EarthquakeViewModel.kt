@@ -59,6 +59,9 @@ class EarthquakeViewModel @Inject constructor(
         publishFilteredState()
     }
 
+    fun findEarthquake(earthquakeId: String): Earthquake? =
+        latestEarthquakes.firstOrNull { it.id == earthquakeId }
+
     private fun observeCache() {
         viewModelScope.launch {
             repository.observeRecentEarthquakes().collect { earthquakes ->

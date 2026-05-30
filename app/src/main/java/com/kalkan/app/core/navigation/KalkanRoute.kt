@@ -5,6 +5,9 @@ import android.net.Uri
 sealed class KalkanRoute(val route: String, val title: String) {
     data object Home : KalkanRoute("home", "Ana Sayfa")
     data object Earthquakes : KalkanRoute("earthquakes", "Depremler")
+    data object EarthquakeDetail : KalkanRoute("earthquake_detail/{earthquakeId}", "Deprem Detayı") {
+        fun createRoute(earthquakeId: String) = "earthquake_detail/${Uri.encode(earthquakeId)}"
+    }
     data object Map : KalkanRoute("map", "Harita")
     data object Family : KalkanRoute("family", "Ailem")
     data object AddEmergencyContact : KalkanRoute("add_emergency_contact", "Kişi Ekle")

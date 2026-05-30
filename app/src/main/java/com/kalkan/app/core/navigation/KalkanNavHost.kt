@@ -48,6 +48,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.kalkan.app.feature.earthquakes.EarthquakeDetailScreen
 import com.kalkan.app.feature.earthquakes.EarthquakesScreen
 import com.kalkan.app.feature.family.AddEmergencyContactScreen
 import com.kalkan.app.feature.family.FamilyScreen
@@ -92,7 +93,9 @@ private val routesWithoutBottomBar = setOf(
 
 private fun shouldShowBottomBar(route: String?): Boolean {
     if (route == null) return true
-    return route !in routesWithoutBottomBar && !route.startsWith("announcement_detail")
+    return route !in routesWithoutBottomBar &&
+        !route.startsWith("announcement_detail") &&
+        !route.startsWith("earthquake_detail")
 }
 
 @Composable
@@ -312,7 +315,54 @@ fun KalkanNavHost(
                     },
                 )
             }
-            composable(KalkanRoute.Earthquakes.route) { EarthquakesScreen() }
+            composable(KalkanRoute.Earthquakes.route) {
+                EarthquakesScreen(
+                    onEarthquakeClick = { earthquakeId ->
+                        navController.navigate(KalkanRoute.EarthquakeDetail.createRoute(earthquakeId))
+                    },
+                )
+            }
+            composable(
+                route = KalkanRoute.EarthquakeDetail.route,
+                arguments = listOf(
+                    navArgument("earthquakeId") { type = NavType.StringType },
+                ),
+            ) { backStackEntry ->
+                val earthquakeId = backStackEntry.arguments?.getString("earthquakeId").orEmpty()
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(KalkanRoute.Earthquakes.route)
+                }
+                val earthquakeViewModel: EarthquakeViewModel = hiltViewModel(parentEntry)
+                val safetyStatusViewModel: SafetyStatusViewModel = hiltViewModel()
+                val safetyStatusState by safetyStatusViewModel.uiState.collectAsState()
+                val user = authState.user
+                val earthquake = earthquakeViewModel.findEarthquake(earthquakeId)
+
+                LaunchedEffect(earthquakeId, earthquake) {
+                    if (earthquake == null) {
+                        navController.popBackStack()
+                    }
+                }
+
+                if (earthquake != null) {
+                    EarthquakeDetailScreen(
+                        earthquake = earthquake,
+                        safetyStatusState = safetyStatusState,
+                        onBackClick = { navController.popBackStack() },
+                        onSubmitSafetyStatus = { statusType ->
+                            safetyStatusViewModel.submitSafetyStatus(statusType, user)
+                        },
+                        onSubmitSafetyStatusWithLocation = { statusType, permissionGranted ->
+                            safetyStatusViewModel.submitSafetyStatusWithLocation(
+                                statusType = statusType,
+                                user = user,
+                                permissionGranted = permissionGranted,
+                            )
+                        },
+                        onDismissSafetyMessage = safetyStatusViewModel::clearSnackbarMessage,
+                    )
+                }
+            }
             composable(KalkanRoute.Map.route) { MapScreen() }
             composable(KalkanRoute.Family.route) {
                 val emergencyContactsViewModel: EmergencyContactsViewModel = hiltViewModel()

@@ -1,5 +1,6 @@
 package com.kalkan.app.feature.earthquakes
 
+import com.kalkan.app.domain.model.Earthquake
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -19,3 +20,13 @@ fun Long.formatLastUpdatedAt(): String =
     SimpleDateFormat("d MMMM HH:mm", TR_LOCALE).apply {
         timeZone = ISTANBUL_TIME_ZONE
     }.format(Date(this))
+
+fun Long.formatEarthquakeDetailDate(): String {
+    if (this == 0L) return "Tarih yok"
+    return SimpleDateFormat("d MMMM yyyy HH:mm", TR_LOCALE).apply {
+        timeZone = ISTANBUL_TIME_ZONE
+    }.format(Date(this))
+}
+
+fun Earthquake.hasValidCoordinates(): Boolean =
+    latitude != 0.0 && longitude != 0.0
