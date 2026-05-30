@@ -51,6 +51,9 @@ import com.kalkan.app.feature.map.MapScreen
 import com.kalkan.app.feature.profile.ProfileScreen
 import com.kalkan.app.ui.screens.LoginScreen
 import com.kalkan.app.ui.screens.AnnouncementDetailScreen
+import com.kalkan.app.feature.earthquakes.EarthquakeViewModel
+import com.kalkan.app.core.notification.NotificationHelper
+import com.kalkan.app.viewmodel.SettingsViewModel
 import com.kalkan.app.ui.screens.admin.AdminDashboardScreen
 import com.kalkan.app.ui.screens.admin.CreateAnnouncementScreen
 import com.kalkan.app.viewmodel.AdminDashboardViewModel
@@ -162,17 +165,29 @@ fun KalkanNavHost() {
             composable(KalkanRoute.Home.route) {
                 val announcementsViewModel: AnnouncementsViewModel = hiltViewModel()
                 val safetyStatusViewModel: SafetyStatusViewModel = hiltViewModel()
+                val earthquakeViewModel: EarthquakeViewModel = hiltViewModel()
+                val emergencyContactsViewModel: EmergencyContactsViewModel = hiltViewModel()
+
                 val announcementsState by announcementsViewModel.uiState.collectAsState()
                 val safetyStatusState by safetyStatusViewModel.uiState.collectAsState()
+                val earthquakeState by earthquakeViewModel.uiState.collectAsState()
+                val contactsState by emergencyContactsViewModel.uiState.collectAsState()
+
                 val user = authState.user
                 val isGuest = user?.isGuest == true
                 val isRegistered = user != null && !isGuest
+
                 LaunchedEffect(isGuest, isRegistered) {
                     announcementsViewModel.loadAnnouncements(
                         isGuest = isGuest,
                         isRegistered = isRegistered,
                     )
                 }
+
+                LaunchedEffect(user?.uid) {
+                    emergencyContactsViewModel.startObserving(user?.uid)
+                }
+
                 HomeScreen(
                     announcementsState = announcementsState,
                     onAnnouncementClick = { announcementId ->
@@ -200,6 +215,32 @@ fun KalkanNavHost() {
                         )
                     },
                     onDismissSafetyMessage = safetyStatusViewModel::clearSnackbarMessage,
+                    currentUser = user,
+                    onSettingsClick = {
+                        navController.navigate(KalkanRoute.Profile.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    earthquakesState = earthquakeState,
+                    onSeeAllEarthquakesClick = {
+                        navController.navigate(KalkanRoute.Earthquakes.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    contacts = contactsState.contacts,
+                    onAddContactClick = {
+                        navController.navigate(KalkanRoute.Family.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
             composable(
@@ -258,16 +299,39 @@ fun KalkanNavHost() {
                 )
             }
             composable(KalkanRoute.Profile.route) {
+                val settingsViewModel: SettingsViewModel = hiltViewModel()
+                val settingsUiState by settingsViewModel.uiState.collectAsState()
+                val user = authState.user
+
                 ProfileScreen(
-                    user = authState.user,
+                    user = user,
                     hasAdminAccess = authState.hasAdminAccess,
-                    notificationPermissionGranted = authState.user?.notificationPermissionGranted == true,
+                    notificationPermissionGranted = hasNotificationPermission,
+                    uiState = settingsUiState,
                     onAdminPanelClick = {
                         if (authState.hasAdminAccess) {
                             navController.navigate(KalkanRoute.AdminDashboard.route)
                         }
                     },
                     onSignOut = authViewModel::signOut,
+                    onBackupClick = { deviceName, appVersion ->
+                        settingsViewModel.runManualBackup(user, deviceName, appVersion)
+                    },
+                    onDeleteAccountClick = {
+                        settingsViewModel.deleteAccount(user) {
+                            authViewModel.signOut()
+                        }
+                    },
+                    onTestNotificationClick = {
+                        NotificationHelper.showKalkanNotification(
+                            context = context,
+                            title = "🛡️ Kalkan Güvenlik Testi",
+                            body = "Kalkan uygulamasından başarıyla test bildirimi aldınız. Acil durumlarda hazırız!"
+                        )
+                    },
+                    onClearMessages = {
+                        settingsViewModel.clearMessages()
+                    }
                 )
             }
             composable(KalkanRoute.AdminDashboard.route) { adminEntry ->

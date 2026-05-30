@@ -78,6 +78,14 @@ import com.kalkan.app.model.SafetyStatusType
 import com.kalkan.app.ui.components.AnnouncementCard
 import com.kalkan.app.viewmodel.AnnouncementsUiState
 import com.kalkan.app.viewmodel.SafetyStatusUiState
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.South
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import android.widget.Toast
 
 private const val HOME_ANNOUNCEMENT_PREVIEW_LIMIT = 3
 
@@ -96,6 +104,12 @@ fun HomeScreen(
     onSubmitSafetyStatus: (SafetyStatusType) -> Unit,
     onSubmitSafetyStatusWithLocation: (SafetyStatusType, Boolean) -> Unit,
     onDismissSafetyMessage: () -> Unit,
+    currentUser: com.kalkan.app.model.AppUser?,
+    onSettingsClick: () -> Unit,
+    earthquakesState: com.kalkan.app.feature.earthquakes.EarthquakeUiState,
+    onSeeAllEarthquakesClick: () -> Unit,
+    contacts: List<com.kalkan.app.model.EmergencyContact>,
+    onAddContactClick: () -> Unit,
 ) {
     val context = LocalContext.current
     var pendingLocationStatusType by remember { mutableStateOf<SafetyStatusType?>(null) }
@@ -162,7 +176,7 @@ fun HomeScreen(
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            TopGreetingBar()
+            TopGreetingBar(user = currentUser, onSettingsClick = onSettingsClick)
             StatusCard()
             EmergencyActionGrid(
                 isSubmitting = safetyStatusState.isSubmitting,
@@ -176,8 +190,8 @@ fun HomeScreen(
                 onAnnouncementClick = onAnnouncementClick,
                 onRetry = onRetryAnnouncements,
             )
-            RecentEarthquakesCard()
-            EmergencyContactsCard()
+            RecentEarthquakesCard(state = earthquakesState, onSeeAllClick = onSeeAllEarthquakesClick)
+            EmergencyContactsCard(contacts = contacts, onAddContactClick = onAddContactClick)
             Spacer(modifier = Modifier.height(12.dp))
         }
 
@@ -200,7 +214,20 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TopGreetingBar() {
+private fun TopGreetingBar(
+    user: com.kalkan.app.model.AppUser?,
+    onSettingsClick: () -> Unit,
+) {
+    val greeting = com.kalkan.app.util.GreetingUtils.getGreeting()
+    val welcomeName = when {
+        user == null || user.isGuest -> "Merhaba, Misafir"
+        else -> {
+            val name = user.displayName.trim()
+            val firstName = name.substringBefore(" ")
+            "Merhaba, $firstName"
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -227,12 +254,12 @@ private fun TopGreetingBar() {
             }
             Column {
                 Text(
-                    text = "İyi Geceler",
+                    text = greeting,
                     style = MaterialTheme.typography.bodyMedium,
                     color = KalkanTextMuted,
                 )
                 Text(
-                    text = "Merhaba, Kullanıcı",
+                    text = welcomeName,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
@@ -240,7 +267,7 @@ private fun TopGreetingBar() {
             }
         }
 
-        IconButton(onClick = {}) {
+        IconButton(onClick = onSettingsClick) {
             Icon(
                 imageVector = Icons.Rounded.Settings,
                 contentDescription = "Ayarlar",
@@ -504,8 +531,14 @@ private fun LocationTile(
     }
 }
 
+private val TertiaryFixed = Color(0xFFFCDEB5)
+private val OnTertiaryFixed = Color(0xFF271901)
+
 @Composable
-private fun RecentEarthquakesCard() {
+private fun RecentEarthquakesCard(
+    state: com.kalkan.app.feature.earthquakes.EarthquakeUiState,
+    onSeeAllClick: () -> Unit
+) {
     HomeSectionCard {
         Text(
             text = "Son Depremler",
@@ -513,25 +546,69 @@ private fun RecentEarthquakesCard() {
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold,
         )
-        Column {
-            EarthquakeItem(
-                magnitude = "4.2",
-                location = "Göksun, Kahramanmaraş",
-                detail = "10 dk önce • Derinlik: 7.2 km",
-                badgeColor = ErrorContainer,
-                badgeTextColor = OnErrorContainer,
-            )
-            HorizontalDivider(color = KalkanBorder.copy(alpha = 0.45f))
-            EarthquakeItem(
-                magnitude = "3.1",
-                location = "Pütürge, Malatya",
-                detail = "45 dk önce • Derinlik: 5.0 km",
-                badgeColor = SurfaceVariant,
-                badgeTextColor = MaterialTheme.colorScheme.primary,
-            )
+        when (state) {
+            is com.kalkan.app.feature.earthquakes.EarthquakeUiState.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(100.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = KalkanBlue)
+                }
+            }
+            is com.kalkan.app.feature.earthquakes.EarthquakeUiState.Empty -> {
+                Text(
+                    text = "Aktif deprem verisi bulunamadı.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = KalkanTextMuted,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            is com.kalkan.app.feature.earthquakes.EarthquakeUiState.Error -> {
+                val cached = state.cachedEarthquakes
+                if (cached.isNotEmpty()) {
+                    Column {
+                        cached.take(3).forEachIndexed { index, eq ->
+                            EarthquakeItem(
+                                magnitude = String.format(Locale("tr", "TR"), "%.1f", eq.magnitude),
+                                location = eq.location.ifBlank { "Konum bilgisi yok" },
+                                detail = "${eq.dateTime.formatDate()} • Derinlik: ${eq.depth} km",
+                                badgeColor = if (eq.magnitude >= 5.0) ErrorContainer else if (eq.magnitude >= 4.0) TertiaryFixed else SurfaceVariant,
+                                badgeTextColor = if (eq.magnitude >= 5.0) OnErrorContainer else if (eq.magnitude >= 4.0) OnTertiaryFixed else Color(0xFF0F172A),
+                            )
+                            if (index < cached.take(3).lastIndex) {
+                                HorizontalDivider(color = KalkanBorder.copy(alpha = 0.45f))
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Deprem verileri alınamadı.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = KalkanTextMuted,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            }
+            is com.kalkan.app.feature.earthquakes.EarthquakeUiState.Success -> {
+                val list = state.earthquakes
+                Column {
+                    list.take(3).forEachIndexed { index, eq ->
+                        EarthquakeItem(
+                            magnitude = String.format(Locale("tr", "TR"), "%.1f", eq.magnitude),
+                            location = eq.location.ifBlank { "Konum bilgisi yok" },
+                            detail = "${eq.dateTime.formatDate()} • Derinlik: ${eq.depth} km",
+                            badgeColor = if (eq.magnitude >= 5.0) ErrorContainer else if (eq.magnitude >= 4.0) TertiaryFixed else SurfaceVariant,
+                            badgeTextColor = if (eq.magnitude >= 5.0) OnErrorContainer else if (eq.magnitude >= 4.0) OnTertiaryFixed else Color(0xFF0F172A),
+                        )
+                        if (index < list.take(3).lastIndex) {
+                            HorizontalDivider(color = KalkanBorder.copy(alpha = 0.45f))
+                        }
+                    }
+                }
+            }
         }
         TextButton(
-            onClick = {},
+            onClick = onSeeAllClick,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
@@ -554,15 +631,16 @@ private fun EarthquakeItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .size(52.dp)
-                .background(badgeColor, CircleShape),
-            contentAlignment = Alignment.Center,
+                .size(48.dp)
+                .background(badgeColor, RoundedCornerShape(8.dp)),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
             Text(
                 text = magnitude,
@@ -571,12 +649,14 @@ private fun EarthquakeItem(
                 fontWeight = FontWeight.Bold,
             )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = location,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = detail,
@@ -587,45 +667,134 @@ private fun EarthquakeItem(
     }
 }
 
+private fun Long.formatDate(): String {
+    if (this == 0L) return "Tarih yok"
+    val formatter = SimpleDateFormat("dd MMM HH:mm", Locale("tr", "TR"))
+    return formatter.format(Date(this))
+}
+
 @Composable
-private fun EmergencyContactsCard() {
-    HomeSectionCard(
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .background(SurfaceVariant, CircleShape),
-            contentAlignment = Alignment.Center,
+private fun EmergencyContactsCard(
+    contacts: List<com.kalkan.app.model.EmergencyContact>,
+    onAddContactClick: () -> Unit
+) {
+    if (contacts.isEmpty()) {
+        HomeSectionCard(
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Groups,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = KalkanTextMuted,
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(SurfaceVariant, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Groups,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = KalkanTextMuted,
+                )
+            }
+            Text(
+                text = "Acil Durum Kişileri",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
             )
+            Text(
+                text = "Henüz kişi eklenmedi. Acil durumlarda hızlıca ulaşmak için kişi ekleyin.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = KalkanTextMuted,
+                textAlign = TextAlign.Center,
+            )
+            Button(
+                onClick = onAddContactClick,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = KalkanBlue),
+                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
+            ) {
+                Icon(imageVector = Icons.Rounded.Add, contentDescription = null)
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(text = "Kişi Ekle", style = MaterialTheme.typography.labelLarge)
+            }
         }
-        Text(
-            text = "Acil Durum Kişileri",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text = "Henüz kişi eklenmedi. Acil durumlarda hızlıca ulaşmak için kişi ekleyin.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = KalkanTextMuted,
-            textAlign = TextAlign.Center,
-        )
-        Button(
-            onClick = {},
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(containerColor = KalkanBlue),
-            contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
-        ) {
-            Icon(imageVector = Icons.Rounded.Add, contentDescription = null)
-            Spacer(modifier = Modifier.size(8.dp))
-            Text(text = "Kişi Ekle", style = MaterialTheme.typography.labelLarge)
+    } else {
+        HomeSectionCard {
+            Text(
+                text = "Acil Durum Kişileri",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                contacts.take(3).forEach { contact ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(KalkanBlue.copy(alpha = 0.08f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Rounded.Person, contentDescription = null, tint = KalkanBlue, modifier = Modifier.size(18.dp))
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = contact.name,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${contact.relation} • ${contact.phone}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = KalkanTextMuted,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        
+                        val context = LocalContext.current
+                        IconButton(
+                            onClick = {
+                                if (!com.kalkan.app.util.EmergencyIntentHelper.openDialer(context, contact.phone)) {
+                                    Toast.makeText(context, "Arama başlatılamadı.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(KalkanBlue.copy(alpha = 0.1f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Phone,
+                                contentDescription = "Ara",
+                                tint = KalkanBlue,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            TextButton(
+                onClick = onAddContactClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = "Rehberi Yönet",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = KalkanBlue,
+                )
+            }
         }
     }
 }

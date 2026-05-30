@@ -72,4 +72,10 @@ abstract class RepositoryModule {
     abstract fun bindFamilyRepository(
         repository: FirebaseFamilyRepository,
     ): FamilyRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSettingsRepository(
+        repository: com.kalkan.app.data.settings.FirebaseSettingsRepository,
+    ): com.kalkan.app.data.settings.SettingsRepository
 }

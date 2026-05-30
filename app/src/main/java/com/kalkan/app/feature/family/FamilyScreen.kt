@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -73,7 +74,9 @@ import androidx.compose.ui.unit.dp
 import com.kalkan.app.core.design.theme.KalkanBlue
 import com.kalkan.app.core.design.theme.KalkanBorder
 import com.kalkan.app.core.design.theme.KalkanGreen
+import com.kalkan.app.core.design.theme.KalkanRed
 import com.kalkan.app.core.design.theme.KalkanTextMuted
+import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.platform.LocalContext
 import com.kalkan.app.model.EmergencyContact
 import com.kalkan.app.model.EmergencyContactRelations
@@ -116,6 +119,10 @@ fun FamilyScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val emergencyMessage = contactsState.emergencyMessage
+
+    var contactToDeleteId by remember { mutableStateOf<String?>(null) }
+    var familyGroupToDeleteId by remember { mutableStateOf<String?>(null) }
+    var familyGroupToLeaveId by remember { mutableStateOf<String?>(null) }
 
     fun handleCall(contact: EmergencyContact) {
         if (!EmergencyIntentHelper.openDialer(context, contact.phone)) {
@@ -170,7 +177,9 @@ fun FamilyScreen(
             EmergencyContactsSection(
                 state = contactsState,
                 onAddContactClick = onAddContactClick,
-                onDeleteContact = onDeleteContact,
+                onDeleteContact = { contactId ->
+                    contactToDeleteId = contactId
+                },
                 onCallContact = { handleCall(it) },
                 onSmsContact = { handleSms(it) },
                 onWhatsAppContact = { handleWhatsApp(it) },
@@ -193,8 +202,12 @@ fun FamilyScreen(
                         members = familyGroupState.members,
                         currentUserUid = currentUserUid,
                         isActionLoading = familyGroupState.isActionLoading,
-                        onLeaveGroup = onLeaveFamilyGroup,
-                        onDeleteGroup = onDeleteFamilyGroup
+                        onLeaveGroup = { groupId ->
+                            familyGroupToLeaveId = groupId
+                        },
+                        onDeleteGroup = { groupId ->
+                            familyGroupToDeleteId = groupId
+                        }
                     )
                 }
                 else -> {
@@ -210,6 +223,81 @@ fun FamilyScreen(
 
             FamilyMapPreview()
             Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (contactToDeleteId != null) {
+            AlertDialog(
+                onDismissRequest = { contactToDeleteId = null },
+                icon = { Icon(Icons.Rounded.Warning, contentDescription = null, tint = KalkanRed) },
+                title = { Text("Kişiyi Sil", fontWeight = FontWeight.Bold) },
+                text = { Text("Seçilen acil durum kişisini rehberinizden silmek istediğinize emin misiniz?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            contactToDeleteId?.let { onDeleteContact(it) }
+                            contactToDeleteId = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = KalkanRed)
+                    ) {
+                        Text("Evet, Sil")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { contactToDeleteId = null }) {
+                        Text("İptal")
+                    }
+                }
+            )
+        }
+
+        if (familyGroupToDeleteId != null) {
+            AlertDialog(
+                onDismissRequest = { familyGroupToDeleteId = null },
+                icon = { Icon(Icons.Rounded.Warning, contentDescription = null, tint = KalkanRed) },
+                title = { Text("Grubu Sil", fontWeight = FontWeight.Bold) },
+                text = { Text("Aile grubunu silmek istediğinize emin misiniz? Bu işlem gruptaki tüm üyeleri gruptan çıkaracaktır ve geri alınamaz.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            familyGroupToDeleteId?.let { onDeleteFamilyGroup(it) }
+                            familyGroupToDeleteId = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = KalkanRed)
+                    ) {
+                        Text("Evet, Sil")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { familyGroupToDeleteId = null }) {
+                        Text("İptal")
+                    }
+                }
+            )
+        }
+
+        if (familyGroupToLeaveId != null) {
+            AlertDialog(
+                onDismissRequest = { familyGroupToLeaveId = null },
+                icon = { Icon(Icons.Rounded.Warning, contentDescription = null, tint = KalkanRed) },
+                title = { Text("Gruptan Ayrıl", fontWeight = FontWeight.Bold) },
+                text = { Text("Bu aile grubundan ayrılmak istediğinize emin misiniz?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            familyGroupToLeaveId?.let { onLeaveFamilyGroup(it) }
+                            familyGroupToLeaveId = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = KalkanRed)
+                    ) {
+                        Text("Evet, Ayrıl")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { familyGroupToLeaveId = null }) {
+                        Text("İptal")
+                    }
+                }
+            )
         }
 
         SnackbarHost(
