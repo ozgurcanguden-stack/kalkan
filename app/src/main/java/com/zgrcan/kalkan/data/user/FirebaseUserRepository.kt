@@ -41,6 +41,8 @@ class FirebaseUserRepository @Inject constructor(
                 isAdmin = false,
                 createdAt = now,
                 lastLoginAt = now,
+                earthquakeNotificationsEnabled = true,
+                earthquakeNotificationMinMagnitude = 4.0,
             )
             userRef.set(user.toFirestoreMap()).await()
             user
@@ -83,6 +85,7 @@ class FirebaseUserRepository @Inject constructor(
     private fun DocumentSnapshot.toAppUser(): AppUser? {
         if (!exists()) return null
         val role = UserRole.from(getString("role"))
+        val eqEnabled = getBoolean("earthquakeNotificationsEnabled")
         return AppUser(
             uid = getString("uid").orEmpty().ifBlank { id },
             displayName = getString("displayName").orEmpty(),
@@ -97,8 +100,8 @@ class FirebaseUserRepository @Inject constructor(
             lastFcmTokenUpdatedAt = getLong("lastFcmTokenUpdatedAt") ?: 0L,
             familyGroupId = getString("familyGroupId"),
             familyInviteCode = getString("familyInviteCode"),
-            earthquakeNotificationsEnabled = getBoolean("earthquakeNotificationsEnabled") == true,
-            earthquakeNotificationMinMagnitude = getDouble("earthquakeNotificationMinMagnitude"),
+            earthquakeNotificationsEnabled = eqEnabled ?: true,
+            earthquakeNotificationMinMagnitude = getDouble("earthquakeNotificationMinMagnitude") ?: if (eqEnabled == false) null else 4.0,
         )
     }
 }

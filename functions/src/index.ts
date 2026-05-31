@@ -402,7 +402,7 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
   let settings = {
     enabled: true,
     intervalMinutes: 5,
-    minSystemMagnitude: 2.0,
+    minSystemMagnitude: 4.0,
     lastCheckedAt: null as admin.firestore.Timestamp | null,
     lastProcessedEarthquakeId: null as string | null
   };
@@ -415,7 +415,7 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
       settings = {
         enabled: typeof data.enabled === "boolean" ? data.enabled : true,
         intervalMinutes: typeof data.intervalMinutes === "number" ? data.intervalMinutes : 5,
-        minSystemMagnitude: typeof data.minSystemMagnitude === "number" ? data.minSystemMagnitude : 2.0,
+        minSystemMagnitude: typeof data.minSystemMagnitude === "number" ? data.minSystemMagnitude : 4.0,
         lastCheckedAt: data.lastCheckedAt || null,
         lastProcessedEarthquakeId: data.lastProcessedEarthquakeId || null
       };
