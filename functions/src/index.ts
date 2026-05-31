@@ -394,6 +394,8 @@ export const sendFamilySafetyAlertPush = onDocumentCreated(
 );
 
 export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
+  logger.info("Function started: monitorEarthquakes");
+
   const settingsRef = admin.firestore().collection("system_settings").doc("earthquake_monitor");
   const settingsDoc = await settingsRef.get();
   
@@ -420,8 +422,10 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
     }
   }
 
+  logger.info("Settings loaded", { settings });
+
   if (!settings.enabled) {
-    logger.info("AFAD monitor skipped: disabled in system settings.");
+    logger.info("Interval skipped: disabled in system settings.");
     return;
   }
 
@@ -430,10 +434,12 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
     const lastCheckedMs = settings.lastCheckedAt.toDate().getTime();
     const elapsedMin = (Date.now() - lastCheckedMs) / (1000 * 60);
     if (elapsedMin < settings.intervalMinutes - 0.1) {
-      logger.info("AFAD monitor skipped: interval not reached.", { elapsedMin, interval: settings.intervalMinutes });
+      logger.info("Interval skipped: interval not reached.", { elapsedMin, interval: settings.intervalMinutes });
       return;
     }
   }
+
+  logger.info("Interval not skipped. Proceeding with AFAD check.");
 
   // Mark checking now
   await settingsRef.update({ lastCheckedAt: now });
@@ -461,6 +467,7 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
     if (Array.isArray(data)) {
       earthquakes = data;
     }
+    logger.info("AFAD fetched count", { count: earthquakes.length, url });
   } catch (err: any) {
     logger.error("AFAD service fetch failed", { error: err?.message || err });
     return;
@@ -473,6 +480,7 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
 
   // Process in chronological order (oldest first)
   const reversedEarthquakes = [...earthquakes].reverse();
+  logger.info("Target earthquake list count", { count: reversedEarthquakes.length });
 
   for (const eq of reversedEarthquakes) {
     const eventID = String(eq.eventID || "").trim();
@@ -482,18 +490,26 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
     const eventDoc = await eventRef.get();
 
     if (eventDoc.exists) {
+      logger.info("Duplicate skipped.", { eventID });
       continue; // already processed
     }
 
-    // Save to database
-    const occurredAtDate = new Date(eq.date + " GMT+0300");
+    // Fix AFAD date format (e.g. "2024-05-31 16:20:00" -> "2024-05-31T16:20:00+03:00")
+    const dateStr = String(eq.date || "").replace(" ", "T") + "+03:00";
+    const occurredAtDate = new Date(dateStr);
+    
+    const magnitude = Number(eq.magnitude || 0);
+    const location = String(eq.location || "Bilinmeyen Bölge");
+
+    logger.info("New earthquake detected.", { eventID, location, magnitude, dateStr });
+
     const eventData = {
       source: "AFAD",
       earthquakeId: eventID,
-      magnitude: Number(eq.magnitude || 0),
-      location: String(eq.location || "Bilinmeyen Bölge"),
+      magnitude: magnitude,
+      location: location,
       depthKm: eq.depth ? Number(eq.depth) : null,
-      occurredAt: admin.firestore.Timestamp.fromDate(occurredAtDate),
+      occurredAt: isNaN(occurredAtDate.getTime()) ? admin.firestore.Timestamp.now() : admin.firestore.Timestamp.fromDate(occurredAtDate),
       latitude: eq.latitude ? Number(eq.latitude) : null,
       longitude: eq.longitude ? Number(eq.longitude) : null,
       createdAt: admin.firestore.Timestamp.now(),
@@ -502,21 +518,19 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
     };
 
     await eventRef.set(eventData);
-    logger.info("New earthquake detected and saved.", { eventID, location: eventData.location, magnitude: eventData.magnitude });
 
-    // Retrieve eligible users (only where notifications are enabled and magnitude is above threshold)
+    // Retrieve eligible users safely without composite index
     let usersSnapshot;
     try {
       usersSnapshot = await admin.firestore().collection("users")
         .where("earthquakeNotificationsEnabled", "==", true)
-        .where("earthquakeNotificationMinMagnitude", "<=", eventData.magnitude)
         .get();
     } catch (err) {
-      logger.warn("Optimized query failed (missing index). Falling back to in-memory filtering.", err);
-      usersSnapshot = await admin.firestore().collection("users")
-        .where("earthquakeNotificationsEnabled", "==", true)
-        .get();
+      logger.error("Failed to query eligible users", { error: err });
+      continue;
     }
+
+    logger.info("Eligible users count (enabled=true)", { count: usersSnapshot.size });
 
     const tokens = new Set<string>();
     usersSnapshot.forEach((doc) => {
@@ -531,6 +545,8 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
     });
 
     const tokenList = Array.from(tokens);
+    logger.info("Collected token count (filtered by magnitude)", { count: tokenList.length });
+
     if (tokenList.length > 0) {
       const notifTitle = "Deprem Bildirimi";
       const notifBody = buildEarthquakeBody(eventData.location, eventData.magnitude);
@@ -581,7 +597,7 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
         }
       }
 
-      logger.info("Earthquake FCM notifications sent.", { eventID, totalTokens: tokenList.length, successCount, failureCount });
+      logger.info("FCM stats for earthquake", { eventID, successCount, failureCount });
     }
 
     // Update event document with notification status
@@ -589,6 +605,7 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
       notificationSent: true,
       notificationSentAt: admin.firestore.Timestamp.now()
     });
+    logger.info("notificationSent updated to true.", { eventID });
 
     // Update settings lastProcessedEarthquakeId
     await settingsRef.update({
