@@ -65,6 +65,7 @@ import com.zgrcan.kalkan.core.notification.NotificationNavigationTarget
 import com.zgrcan.kalkan.viewmodel.SettingsViewModel
 import com.zgrcan.kalkan.ui.screens.admin.AdminDashboardScreen
 import com.zgrcan.kalkan.ui.screens.admin.CreateAnnouncementScreen
+import com.zgrcan.kalkan.ui.screens.admin.AdminPlaceholderScreen
 import com.zgrcan.kalkan.viewmodel.AdminDashboardViewModel
 import com.zgrcan.kalkan.viewmodel.AnnouncementsViewModel
 import com.zgrcan.kalkan.viewmodel.AuthViewModel
@@ -89,6 +90,11 @@ private val routesWithoutBottomBar = setOf(
     KalkanRoute.EmergencyProfileEdit.route,
     KalkanRoute.AdminDashboard.route,
     KalkanRoute.CreateAnnouncement.route,
+    KalkanRoute.AdminEmergencyAlert.route,
+    KalkanRoute.AdminUsers.route,
+    KalkanRoute.AdminNotifications.route,
+    KalkanRoute.AdminEarthquakeMonitor.route,
+    KalkanRoute.AdminSystemMonitor.route,
 )
 
 private fun shouldShowBottomBar(route: String?): Boolean {
@@ -551,9 +557,9 @@ fun KalkanNavHost(
                             launchSingleTop = true
                         }
                     },
-                    onCreateAnnouncementClick = {
+                    onFeatureClick = { route ->
                         if (authState.hasAdminAccess) {
-                            navController.navigate(KalkanRoute.CreateAnnouncement.route)
+                            navController.navigate(route)
                         }
                     },
                     onRefreshAnnouncements = adminDashboardViewModel::loadRecentAnnouncements,
@@ -574,6 +580,36 @@ fun KalkanNavHost(
                         adminDashboardViewModel.loadRecentAnnouncements()
                         navController.popBackStack()
                     },
+                )
+            }
+            composable(KalkanRoute.AdminEmergencyAlert.route) {
+                AdminPlaceholderScreen(
+                    route = "admin_emergency_alert",
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+            composable(KalkanRoute.AdminUsers.route) {
+                AdminPlaceholderScreen(
+                    route = "admin_users",
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+            composable(KalkanRoute.AdminNotifications.route) {
+                AdminPlaceholderScreen(
+                    route = "admin_notifications",
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+            composable(KalkanRoute.AdminEarthquakeMonitor.route) {
+                AdminPlaceholderScreen(
+                    route = "admin_earthquake_monitor",
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+            composable(KalkanRoute.AdminSystemMonitor.route) {
+                AdminPlaceholderScreen(
+                    route = "admin_system_monitor",
+                    onBackClick = { navController.popBackStack() }
                 )
             }
         }

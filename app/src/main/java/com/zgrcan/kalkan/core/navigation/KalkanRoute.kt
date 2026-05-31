@@ -16,6 +16,11 @@ sealed class KalkanRoute(val route: String, val title: String) {
     data object Profile : KalkanRoute("profile", "Profil")
     data object AdminDashboard : KalkanRoute("admin_dashboard", "Admin Paneli")
     data object CreateAnnouncement : KalkanRoute("create_announcement", "Duyuru Olustur")
+    data object AdminEmergencyAlert : KalkanRoute("admin_emergency_alert", "Acil Uyari Yayinla")
+    data object AdminUsers : KalkanRoute("admin_users", "Kullanicilar")
+    data object AdminNotifications : KalkanRoute("admin_notifications", "Bildirim Merkezi")
+    data object AdminEarthquakeMonitor : KalkanRoute("admin_earthquake_monitor", "Deprem Izleme")
+    data object AdminSystemMonitor : KalkanRoute("admin_system_monitor", "Sistem Izleme")
     data object AnnouncementDetail : KalkanRoute("announcement_detail/{announcementId}", "Duyuru Detayi") {
         fun createRoute(announcementId: String) = "announcement_detail/${Uri.encode(announcementId)}"
     }

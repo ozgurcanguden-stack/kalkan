@@ -19,11 +19,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Analytics
 import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -63,7 +64,7 @@ fun AdminDashboardScreen(
     isLoadingAnnouncements: Boolean,
     announcementsError: String?,
     onBackClick: () -> Unit,
-    onCreateAnnouncementClick: () -> Unit,
+    onFeatureClick: (String) -> Unit,
     onRefreshAnnouncements: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -97,17 +98,11 @@ fun AdminDashboardScreen(
                     isLoading = isLoadingAnnouncements,
                     errorMessage = announcementsError,
                 )
-                adminFeatures.forEach { feature ->
+                adminFeatures.filter { it.visible }.forEach { feature ->
                     AdminFeatureCard(
                         feature = feature,
                         onClick = {
-                            if (feature.route == AdminFeatureRoute.CreateAnnouncement) {
-                                onCreateAnnouncementClick()
-                            } else {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("${feature.title} hazirlaniyor.")
-                                }
-                            }
+                            onFeatureClick(feature.route)
                         },
                     )
                 }
@@ -317,57 +312,65 @@ private fun AdminFeatureCard(
         }
     }
 }
-
-private enum class AdminFeatureRoute {
-    CreateAnnouncement,
-    Placeholder,
-}
-
 private data class AdminFeature(
     val title: String,
     val description: String,
     val icon: ImageVector,
     val tint: Color,
-    val route: AdminFeatureRoute = AdminFeatureRoute.Placeholder,
+    val route: String,
+    val visible: Boolean = true,
 )
 
 private val adminFeatures = listOf(
     AdminFeature(
-        title = "Duyuru Gonder",
-        description = "Tum kullanicilara veya belirli gruplara duyuru olusturun.",
+        title = "Duyuru Oluştur",
+        description = "Sistem duyuruları, bakım bilgilendirmeleri ve genel açıklamalar yayınlayın.",
         icon = Icons.Rounded.Campaign,
         tint = KalkanBlue,
-        route = AdminFeatureRoute.CreateAnnouncement,
+        route = "create_announcement",
     ),
     AdminFeature(
-        title = "Acil Uyari Gonder",
-        description = "Afet ve acil durumlar icin kritik uyari hazirlayin.",
+        title = "Acil Uyarı Yayınla",
+        description = "Yangın, sel riski, tahliye çağrıları ve kritik acil durum bilgilendirmeleri gönderin.",
         icon = Icons.Rounded.Warning,
         tint = KalkanRed,
+        route = "admin_emergency_alert",
     ),
     AdminFeature(
-        title = "Kullanici Istatistikleri",
-        description = "Toplam kullanici, aktif kullanici ve rol dagilimini goruntuleyin.",
-        icon = Icons.Rounded.Analytics,
-        tint = Color(0xFF22C55E),
+        title = "Kullanıcılar",
+        description = "Kullanıcı ve aile grubu istatistiklerini görüntüleyin.",
+        icon = Icons.Rounded.Groups,
+        tint = Color(0xFF10B981),
+        route = "admin_users",
     ),
     AdminFeature(
-        title = "Bildirim Yonetimi",
-        description = "Gonderilecek push bildirimlerini yonetin.",
+        title = "Bildirim Merkezi",
+        description = "Geçmiş gönderilen bildirim kayıtlarını listeleyin.",
         icon = Icons.Rounded.Notifications,
         tint = KalkanBlue,
+        route = "admin_notifications",
     ),
     AdminFeature(
-        title = "Sistem Izleme",
-        description = "Uygulama servis durumlarini ve hata kayitlarini takip edin.",
+        title = "Deprem İzleme",
+        description = "Gelecekte kurulacak AFAD otomatik deprem izleme sisteminin yönetim ekranı.",
+        icon = Icons.Rounded.Public,
+        tint = Color(0xFFF59E0B),
+        route = "admin_earthquake_monitor",
+    ),
+    AdminFeature(
+        title = "Sistem İzleme",
+        description = "Teknik servislerin durumunu görüntüleyin.",
         icon = Icons.Rounded.MonitorHeart,
-        tint = Color(0xFF64748B),
+        tint = Color(0xFF6B7280),
+        route = "admin_system_monitor",
     ),
     AdminFeature(
-        title = "Sensor Agi",
+        title = "Sensör Ağı",
         description = "Ileride eklenecek sarsinti algilama verilerini goruntuleyin.",
         icon = Icons.Rounded.Memory,
         tint = Color(0xFF8B5CF6),
+        route = "sensor_network",
+        visible = false,
     ),
 )
 
