@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Get user document data
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Helper: Check if user is super admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             getUserData().isAdmin == true && 
+             getUserData().role == 'super_admin';
+    }
+
+    // System Settings - Lock down to Super Admin only
+    match /system_settings/{document} {
+      allow read, update, create: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Users - Users can read/write their own document, Admins can do all
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // General Fallback for other existing collections to prevent breaking any client logic
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

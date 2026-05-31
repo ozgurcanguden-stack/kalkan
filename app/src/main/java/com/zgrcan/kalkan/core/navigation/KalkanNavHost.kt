@@ -73,6 +73,8 @@ import com.zgrcan.kalkan.viewmodel.EmergencyContactsViewModel
 import com.zgrcan.kalkan.viewmodel.EmergencyProfileViewModel
 import com.zgrcan.kalkan.viewmodel.SafetyStatusViewModel
 import com.zgrcan.kalkan.viewmodel.FamilyGroupViewModel
+import com.zgrcan.kalkan.viewmodel.EarthquakeMonitorViewModel
+import com.zgrcan.kalkan.ui.screens.admin.EarthquakeMonitorScreen
 import com.zgrcan.kalkan.model.BackupFrequency
 import androidx.compose.runtime.collectAsState
 
@@ -606,9 +608,13 @@ fun KalkanNavHost(
                 )
             }
             composable(KalkanRoute.AdminEarthquakeMonitor.route) {
-                AdminPlaceholderScreen(
-                    route = "admin_earthquake_monitor",
-                    onBackClick = { navController.popBackStack() }
+                val earthquakeMonitorViewModel: EarthquakeMonitorViewModel = hiltViewModel()
+                val earthquakeMonitorState by earthquakeMonitorViewModel.uiState.collectAsState()
+                EarthquakeMonitorScreen(
+                    uiState = earthquakeMonitorState,
+                    onBackClick = { navController.popBackStack() },
+                    onSaveSettings = earthquakeMonitorViewModel::saveSettings,
+                    onClearMessages = earthquakeMonitorViewModel::clearMessages
                 )
             }
             composable(KalkanRoute.AdminSystemMonitor.route) {
