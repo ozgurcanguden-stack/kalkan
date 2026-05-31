@@ -23,6 +23,32 @@ interface SafetyStatusData {
 
 const FCM_BATCH_SIZE = 500;
 
+// ─────────────────────────────────────────────────────────────
+// Notification Text Helpers
+// ─────────────────────────────────────────────────────────────
+
+function safeUserName(displayName: string | null | undefined): string {
+  const name = (displayName ?? "").trim();
+  return name.length > 0 ? name : "Bir aile üyesi";
+}
+
+function safeLocation(location: string | null | undefined): string {
+  const loc = (location ?? "").trim();
+  return loc.length > 0 ? loc : "";
+}
+
+function buildEarthquakeBody(location: string, magnitude: number): string {
+  const loc = safeLocation(location);
+  if (loc.length === 0) {
+    return `Türkiye genelinde ${magnitude} büyüklüğünde deprem kaydedildi.`;
+  }
+  return `${loc} yakınlarında ${magnitude} büyüklüğünde deprem meydana geldi.`;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
 function isGuestUser(email: unknown): boolean {
   if (email === null || email === undefined) {
     return true;
@@ -89,10 +115,17 @@ async function sendAnnouncementToTokens(
   let successCount = 0;
   let failureCount = 0;
 
+  const notifTitle = "KALKAN Duyurusu";
+  const notifBody = title.trim() || body.trim();
+
   const dataPayload: Record<string, string> = {
     type: "announcement",
+    title: notifTitle,
+    body: notifBody,
     announcementId,
     priority,
+    source: "KALKAN",
+    createdAt: nowIso(),
   };
 
   const androidPriority = priority === "urgent" ? "high" : "normal";
@@ -103,7 +136,7 @@ async function sendAnnouncementToTokens(
     try {
       const response = await messaging.sendEachForMulticast({
         tokens: batch,
-        notification: { title, body },
+        notification: { title: notifTitle, body: notifBody },
         data: dataPayload,
         android: {
           priority: androidPriority,
@@ -168,10 +201,13 @@ async function sendSafetyAlertToTokens(
   statusId: string,
   sourceUid: string,
   statusType: string,
+  familyGroupId: string,
 ): Promise<{ successCount: number; failureCount: number }> {
   const messaging = admin.messaging();
   let successCount = 0;
   let failureCount = 0;
+
+  const notifType = statusType === "sos" ? "sos_alert" : "help_request";
 
   for (let offset = 0; offset < tokens.length; offset += FCM_BATCH_SIZE) {
     const batch = tokens.slice(offset, offset + FCM_BATCH_SIZE);
@@ -181,11 +217,16 @@ async function sendSafetyAlertToTokens(
         tokens: batch,
         notification: { title, body },
         data: {
-          type: "family_safety_alert",
-          statusId,
+          type: notifType,
+          title,
+          body,
+          safetyStatusId: statusId,
           sourceUid,
           senderUid: sourceUid,
           statusType,
+          familyGroupId,
+          source: "KALKAN",
+          createdAt: nowIso(),
         },
         android: {
           priority: "high",
@@ -244,6 +285,10 @@ export const sendAnnouncementPush = onDocumentCreated(
     const targetAudience = normalizeTargetAudience(data.targetAudience);
     const priority = (data.priority ?? "normal").trim() || "normal";
 
+    // Professional announcement title
+    const pushTitle = "KALKAN Duyurusu";
+    const pushBody = title.trim() || message.trim();
+
     const tokens = await collectEligibleTokens(targetAudience);
     const tokenCount = tokens.length;
 
@@ -266,8 +311,8 @@ export const sendAnnouncementPush = onDocumentCreated(
 
     const { successCount, failureCount } = await sendAnnouncementToTokens(
       tokens,
-      title,
-      message,
+      pushTitle,
+      pushBody,
       announcementId,
       priority,
     );
@@ -311,11 +356,11 @@ export const sendFamilySafetyAlertPush = onDocumentCreated(
       return;
     }
 
-    const displayName = (data.displayName ?? "").trim() || "Bir aile üyeniz";
-    const title = statusType === "sos" ? "ACİL SOS" : "YARDIM İSTİYOR";
+    const displayName = safeUserName(data.displayName);
+    const title = statusType === "sos" ? "SOS Bildirimi" : "Yardım Talebi";
     const body = statusType === "sos"
-      ? `${displayName} acil SOS çağrısı gönderdi.`
-      : `${displayName} yardım istiyor.`;
+      ? `${displayName} acil yardım çağrısı gönderdi. Konum bilgisi mevcutsa haritadan kontrol edin.`
+      : `${displayName} yardım talebi gönderdi. Aile güvenlik ekranından durumunu kontrol edin.`;
     const tokens = await collectFamilyTokens(familyGroupId, sourceUid);
 
     if (tokens.length === 0) {
@@ -334,6 +379,7 @@ export const sendFamilySafetyAlertPush = onDocumentCreated(
       statusId,
       sourceUid,
       statusType,
+      familyGroupId,
     );
 
     logger.info("Family safety alert push completed", {
@@ -486,16 +532,28 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
 
     const tokenList = Array.from(tokens);
     if (tokenList.length > 0) {
-      const title = "Deprem Bildirimi";
-      const body = `${eventData.location} yakınlarında ${eventData.magnitude} büyüklüğünde deprem meydana geldi.`;
-      
-      const payload = {
+      const notifTitle = "Deprem Bildirimi";
+      const notifBody = buildEarthquakeBody(eventData.location, eventData.magnitude);
+
+      const payload: Record<string, string> = {
         type: "earthquake",
+        title: notifTitle,
+        body: notifBody,
         earthquakeId: eventID,
         magnitude: String(eventData.magnitude),
-        location: eventData.location,
-        source: "AFAD"
+        location: safeLocation(eventData.location) || "Bilinmiyor",
+        source: "AFAD",
+        createdAt: nowIso(),
       };
+      if (eventData.depthKm !== null && eventData.depthKm !== undefined) {
+        payload["depthKm"] = String(eventData.depthKm);
+      }
+      if (eventData.latitude !== null && eventData.latitude !== undefined) {
+        payload["latitude"] = String(eventData.latitude);
+      }
+      if (eventData.longitude !== null && eventData.longitude !== undefined) {
+        payload["longitude"] = String(eventData.longitude);
+      }
 
       let successCount = 0;
       let failureCount = 0;
@@ -505,7 +563,7 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
         try {
           const response = await admin.messaging().sendEachForMulticast({
             tokens: batch,
-            notification: { title, body },
+            notification: { title: notifTitle, body: notifBody },
             data: payload,
             android: {
               priority: "high",

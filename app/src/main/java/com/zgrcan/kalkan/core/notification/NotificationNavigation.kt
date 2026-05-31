@@ -6,6 +6,7 @@ sealed interface NotificationNavigationTarget {
     data object Home : NotificationNavigationTarget
     data object Family : NotificationNavigationTarget
     data class AnnouncementDetail(val announcementId: String) : NotificationNavigationTarget
+    data class EarthquakeDetail(val earthquakeId: String) : NotificationNavigationTarget
 }
 
 object NotificationNavigation {
@@ -26,11 +27,19 @@ object NotificationNavigation {
                     NotificationNavigationTarget.Home
                 }
             }
-            "family_safety_alert" -> {
+            "sos_alert", "help_request", "family_safety_alert" -> {
                 val statusType = data["statusType"].orEmpty().trim()
                 val senderUid = (data["senderUid"] ?: data["sourceUid"]).orEmpty().trim()
-                if ((statusType == "sos" || statusType == "need_help") && senderUid.isNotBlank()) {
+                if (senderUid.isNotBlank()) {
                     NotificationNavigationTarget.Family
+                } else {
+                    NotificationNavigationTarget.Home
+                }
+            }
+            "earthquake" -> {
+                val earthquakeId = data["earthquakeId"].orEmpty().trim()
+                if (earthquakeId.isValidDocumentId()) {
+                    NotificationNavigationTarget.EarthquakeDetail(earthquakeId)
                 } else {
                     NotificationNavigationTarget.Home
                 }

@@ -160,6 +160,9 @@ fun KalkanNavHost(
             NotificationNavigationTarget.Family -> KalkanRoute.Family.route
             is NotificationNavigationTarget.AnnouncementDetail ->
                 KalkanRoute.AnnouncementDetail.createRoute(notificationNavigationTarget.announcementId)
+            is NotificationNavigationTarget.EarthquakeDetail ->
+                // No dedicated earthquake detail screen yet — navigate to Home
+                KalkanRoute.Home.route
         }
 
         navController.navigate(route) {
@@ -531,8 +534,8 @@ fun KalkanNavHost(
                     onTestNotificationClick = {
                         NotificationHelper.showKalkanNotification(
                             context = context,
-                            title = "🛡️ Kalkan Güvenlik Testi",
-                            body = "Kalkan uygulamasından başarıyla test bildirimi aldınız. Acil durumlarda hazırız!"
+                            title = "KALKAN Test Bildirimi",
+                            body = "Bildirim sistemi çalışıyor. Gerçek bir durum değildir."
                         )
                     },
                     onClearMessages = {

@@ -47,7 +47,7 @@ class KalkanFirebaseMessagingService : FirebaseMessagingService() {
             ?: "Kalkan"
         val body = message.notification?.body
             ?: message.data["body"]
-            ?: "Test bildirimi başarıyla alındı."
+            ?: "Yeni bir bildirim aldınız."
 
         NotificationHelper.showKalkanNotification(
             context = this,
