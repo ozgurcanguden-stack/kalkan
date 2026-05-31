@@ -10,7 +10,7 @@
 - **Trigger:** `safety_status/{statusId}` onCreate (Firestore)
 - **Purpose:** Sends high-priority `sos` and `need_help` alerts to the other users in the same family group.
 
-Both push functions include `clickAction = "com.kalkan.app.NOTIFICATION_CLICK"` so Android can route
+Both push functions include `clickAction = "com.zgrcan.kalkan.NOTIFICATION_CLICK"` so Android can route
 announcement notifications to the detail screen and family safety alerts to the family screen.
 
 ## Deploy

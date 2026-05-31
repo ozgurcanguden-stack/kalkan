@@ -26,7 +26,7 @@ The home screen must stay simple. New features should live inside their own modu
 
 ## Firebase Setup
 
-1. Create a Firebase Android app with package `com.kalkan.app`.
+1. Create a Firebase Android app with package `com.zgrcan.kalkan`.
 2. Download `google-services.json`.
 3. Place it at `app/google-services.json`.
 4. Enable this line in `app/build.gradle.kts`:

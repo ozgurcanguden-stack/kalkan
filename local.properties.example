@@ -1,0 +1,11 @@
+## Google Maps API Key
+
+Harita sekmesinin calismasi icin proje kokune `local.properties` dosyasina su satiri ekleyin:
+
+```
+MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY
+```
+
+Alternatif olarak `secrets.properties` dosyasinda da tanimlayabilirsiniz.
+
+Google Cloud Console'da **Maps SDK for Android** etkinlestirilmis bir API anahtari kullanin.
