@@ -38,3 +38,13 @@ alias(libs.plugins.google.services)
 ## Font
 
 The requested product font is Plus Jakarta Sans. Add the font files under `app/src/main/res/font/` and update `core/design/theme/Type.kt` to use that family. Until font files are added, the app uses the platform sans-serif fallback.
+
+## Yol Haritası — İleri Faz Özellikleri
+
+### Sensör Ağı
+
+Sensör Ağı modülü şimdilik gizlidir. Gerçek telefon sensörü, ivmeölçer veya saha sensör ağı altyapısı kurulmadan kullanıcıya açılmayacaktır. İleri faz özelliği olarak korunmaktadır.
+
+- Admin panelinde `visible = false` olarak işaretlenmiştir.
+- Route kodu (`sensor_network`) korunmaktadır; altyapı hazır olduğunda açılacaktır.
+- Kullanıcıya bu modülün varlığına dair herhangi bir ifade gösterilmemektedir.

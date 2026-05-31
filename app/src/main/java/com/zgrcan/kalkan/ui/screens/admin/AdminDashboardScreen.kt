@@ -364,9 +364,12 @@ private val adminFeatures = listOf(
         tint = Color(0xFF6B7280),
         route = "admin_system_monitor",
     ),
+    // ── Sensör Ağı ──────────────────────────────────────────────────────────────
+    // İleri faz özelliği. Gerçek telefon sensörü, ivmeölçer veya saha sensör ağı
+    // altyapısı kurulmadan kullanıcıya açılmayacaktır. visible = false kalmalıdır.
     AdminFeature(
         title = "Sensör Ağı",
-        description = "Ileride eklenecek sarsinti algilama verilerini goruntuleyin.",
+        description = "Saha sensör altyapısı hazır olduğunda aktif edilecek ileri faz modülü.",
         icon = Icons.Rounded.Memory,
         tint = Color(0xFF8B5CF6),
         route = "sensor_network",

@@ -24,7 +24,7 @@ fun AdminScreen() {
             "Acil Uyari Gonder",
             "Kullanici Istatistikleri",
             "Bildirim Yonetimi",
-            "Sensor Verileri",
+            // "Sensor Verileri" — İleri faz modülü, şimdilik gizli
             "Sistem Ayarlari",
         ).forEach { title ->
             KalkanCard {

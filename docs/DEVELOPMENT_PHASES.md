@@ -10,3 +10,9 @@
 8. Admin: announcements, emergency alerts, user stats, notification management, settings.
 9. Quality: accessibility, error states, loading states, restrained transitions.
 10. Release: security rules, Crashlytics, Analytics, Play Store assets, privacy policy, closed test.
+
+## İleri Faz — Gizli Modüller
+
+### Sensör Ağı
+
+Sensör Ağı modülü şimdilik gizlidir. Gerçek telefon sensörü, ivmeölçer veya saha sensör ağı altyapısı kurulmadan kullanıcıya açılmayacaktır. İleri faz özelliği olarak korunmaktadır.
