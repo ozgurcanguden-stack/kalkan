@@ -158,6 +158,30 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateEarthquakeNotificationSettings(uid: String, enabled: Boolean, minMagnitude: Double?) {
+        if (uid.isBlank()) return
+        _uiState.update { it.copy(isNotificationSettingsLoading = true, error = null, successMessage = null) }
+        viewModelScope.launch {
+            settingsRepository.updateEarthquakeNotificationSettings(uid, enabled, minMagnitude)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            isNotificationSettingsLoading = false,
+                            successMessage = "Deprem bildirim tercihleri güncellendi."
+                        )
+                    }
+                }
+                .onFailure { err ->
+                    _uiState.update {
+                        it.copy(
+                            isNotificationSettingsLoading = false,
+                            error = err.message ?: "Tercihler kaydedilemedi."
+                        )
+                    }
+                }
+        }
+    }
+
     fun clearMessages() {
         _uiState.update { it.copy(error = null, successMessage = null) }
     }
@@ -168,6 +192,7 @@ data class SettingsUiState(
     val isExportLoading: Boolean = false,
     val isClearLoading: Boolean = false,
     val isDeleteLoading: Boolean = false,
+    val isNotificationSettingsLoading: Boolean = false,
     val backupFrequency: BackupFrequency = BackupFrequency.DAILY,
     val lastManualBackupAt: Long? = null,
     val lastSyncAt: Long? = null,

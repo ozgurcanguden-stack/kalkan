@@ -14,6 +14,8 @@ data class AppUser(
     val lastFcmTokenUpdatedAt: Long = 0L,
     val familyGroupId: String? = null,
     val familyInviteCode: String? = null,
+    val earthquakeNotificationsEnabled: Boolean = false,
+    val earthquakeNotificationMinMagnitude: Double? = null,
 ) {
     val isGuest: Boolean
         get() = email.isNullOrBlank()

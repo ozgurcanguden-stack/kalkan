@@ -109,6 +109,20 @@ class FirebaseSettingsRepository @Inject constructor(
         Unit
     }.recoverWith("Hesap silinirken bir hata oluştu.")
 
+    override suspend fun updateEarthquakeNotificationSettings(
+        uid: String,
+        enabled: Boolean,
+        minMagnitude: Double?
+    ): Result<Unit> = runCatching {
+        require(uid.isNotBlank()) { "Geçersiz kullanıcı kimliği." }
+        userRef(uid).update(mapOf(
+            "earthquakeNotificationsEnabled" to enabled,
+            "earthquakeNotificationMinMagnitude" to minMagnitude
+        )).await()
+        Log.d(TAG, "Earthquake notification settings updated for uid='$uid': enabled=$enabled, minMagnitude=$minMagnitude")
+        Unit
+    }.recoverWith("Deprem bildirim tercihleri kaydedilemedi. Lütfen tekrar deneyin.")
+
     // Helper: converts Firebase-internal errors to user-friendly Turkish messages.
     // Our own explicitly thrown Exception messages are kept as-is.
     private fun <T> Result<T>.recoverWith(userMessage: String): Result<T> {

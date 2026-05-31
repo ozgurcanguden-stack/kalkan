@@ -10,4 +10,5 @@ interface SettingsRepository {
     suspend fun getBackupFrequency(uid: String): Result<BackupFrequency>
     suspend fun setBackupFrequency(uid: String, frequency: BackupFrequency): Result<Unit>
     suspend fun getBackupTimestamps(uid: String): Result<Pair<Long?, Long?>>
+    suspend fun updateEarthquakeNotificationSettings(uid: String, enabled: Boolean, minMagnitude: Double?): Result<Unit>
 }

@@ -539,6 +539,11 @@ fun KalkanNavHost(
                     onEmergencyProfileClick = {
                         navController.navigate(KalkanRoute.EmergencyProfileView.route)
                     },
+                    onUpdateEarthquakeNotifications = { enabled, minMag ->
+                        if (user != null && !user.uid.isBlank() && !user.isGuest) {
+                            settingsViewModel.updateEarthquakeNotificationSettings(user.uid, enabled, minMag)
+                        }
+                    },
                 )
             }
             composable(KalkanRoute.AdminDashboard.route) { adminEntry ->

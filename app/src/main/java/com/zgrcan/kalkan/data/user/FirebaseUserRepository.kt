@@ -76,6 +76,8 @@ class FirebaseUserRepository @Inject constructor(
         "familyGroupId" to familyGroupId,
         "familyInviteCode" to familyInviteCode,
         "backupFrequency" to BackupFrequency.DAILY.key,
+        "earthquakeNotificationsEnabled" to earthquakeNotificationsEnabled,
+        "earthquakeNotificationMinMagnitude" to earthquakeNotificationMinMagnitude,
     )
 
     private fun DocumentSnapshot.toAppUser(): AppUser? {
@@ -95,6 +97,8 @@ class FirebaseUserRepository @Inject constructor(
             lastFcmTokenUpdatedAt = getLong("lastFcmTokenUpdatedAt") ?: 0L,
             familyGroupId = getString("familyGroupId"),
             familyInviteCode = getString("familyInviteCode"),
+            earthquakeNotificationsEnabled = getBoolean("earthquakeNotificationsEnabled") == true,
+            earthquakeNotificationMinMagnitude = getDouble("earthquakeNotificationMinMagnitude"),
         )
     }
 }

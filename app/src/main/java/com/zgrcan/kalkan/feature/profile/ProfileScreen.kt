@@ -74,6 +74,7 @@ fun ProfileScreen(
     onTestNotificationClick: () -> Unit,
     onClearMessages: () -> Unit,
     onEmergencyProfileClick: () -> Unit,
+    onUpdateEarthquakeNotifications: (Boolean, Double?) -> Unit,
 ) {
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
@@ -81,7 +82,7 @@ fun ProfileScreen(
     var activeSubScreen by remember { mutableStateOf(ProfileSubScreen.MAIN) }
     val lastBackupTime = uiState.lastBackupFormatted
 
-    var earthquakeAlertsEnabled by remember { mutableStateOf(true) }
+    var showEarthquakeNotificationsDialog by remember { mutableStateOf(false) }
     var familyAlertsEnabled by remember { mutableStateOf(true) }
 
     var showDeleteAccountDialog1 by remember { mutableStateOf(false) }
@@ -181,18 +182,14 @@ fun ProfileScreen(
                                 cardBg = cardBg,
                                 borderColor = borderColor,
                             ) {
-                                StitchToggleRow(
+                                StitchClickableRow(
                                     icon = Icons.Rounded.Sensors,
                                     iconBg = StitchErrorContainer.copy(alpha = if (isDark) 0.3f else 0.2f),
                                     iconTint = StitchError,
-                                    title = "Deprem Uyarıları",
-                                    subtitle = "Yakın konumdaki 4.0+ sarsıntılar",
-                                    checked = earthquakeAlertsEnabled,
-                                    onCheckedChange = {
-                                        earthquakeAlertsEnabled = it
-                                        AppTopNotificationCenter.showSuccess(
-                                            if (it) "Deprem uyarıları etkinleştirildi." else "Deprem uyarıları kapatıldı."
-                                        )
+                                    title = "Deprem Bildirimleri",
+                                    subtitle = getDepremBildirimLabel(user),
+                                    onClick = {
+                                        showEarthquakeNotificationsDialog = true
                                     },
                                     showDivider = true,
                                     isDark = isDark,
@@ -529,6 +526,114 @@ fun ProfileScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteAccountDialog2 = false }) { Text("Vazgeç") }
+            }
+        )
+    }
+
+    if (showEarthquakeNotificationsDialog) {
+        val currentLabel = getDepremBildirimLabel(user)
+        val dialogOptions = listOf("Kapalı", "2.0+", "3.0+", "4.0+", "5.0+")
+
+        AlertDialog(
+            onDismissRequest = { 
+                if (!uiState.isNotificationSettingsLoading) {
+                    showEarthquakeNotificationsDialog = false 
+                }
+            },
+            title = {
+                Text(
+                    text = "Deprem Bildirim Tercihi",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Hangi büyüklükteki depremler için anlık bildirim almak istediğinizi seçin:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = KalkanTextMuted,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    dialogOptions.forEach { option ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !uiState.isNotificationSettingsLoading) {
+                                    val enabled = option != "Kapalı"
+                                    val magnitude = if (enabled) option.replace("+", "").toDoubleOrNull() else null
+                                    
+                                    if (user != null && !user.uid.isBlank()) {
+                                        if (user.isGuest) {
+                                            Toast.makeText(context, "Misafir kullanıcılar deprem bildirim tercihlerini değiştiremez.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            onUpdateEarthquakeNotifications(enabled, magnitude)
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Tercihleri güncellemek için oturum açmış olmanız gerekmektedir.", Toast.LENGTH_SHORT).show()
+                                    }
+                                    showEarthquakeNotificationsDialog = false
+                                }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = currentLabel == option,
+                                onClick = {
+                                    val enabled = option != "Kapalı"
+                                    val magnitude = if (enabled) option.replace("+", "").toDoubleOrNull() else null
+                                    
+                                    if (user != null && !user.uid.isBlank()) {
+                                        if (user.isGuest) {
+                                            Toast.makeText(context, "Misafir kullanıcılar deprem bildirim tercihlerini değiştiremez.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            onUpdateEarthquakeNotifications(enabled, magnitude)
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Tercihleri güncellemek için oturum açmış olmanız gerekmektedir.", Toast.LENGTH_SHORT).show()
+                                    }
+                                    showEarthquakeNotificationsDialog = false
+                                },
+                                enabled = !uiState.isNotificationSettingsLoading,
+                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0D9488))
+                            )
+                            Text(
+                                text = option,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(start = 8.dp),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    if (uiState.isNotificationSettingsLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = KalkanBlue,
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(
+                    onClick = { showEarthquakeNotificationsDialog = false },
+                    enabled = !uiState.isNotificationSettingsLoading
+                ) {
+                    Text("İptal", color = Color(0xFF0D9488), fontWeight = FontWeight.SemiBold)
+                }
             }
         )
     }
@@ -1000,6 +1105,79 @@ private fun AccountDetailsCard(
                     )
                 }
             }
+        }
+    }
+}
+
+private fun getDepremBildirimLabel(user: AppUser?): String {
+    if (user == null) return "Kapalı"
+    if (!user.earthquakeNotificationsEnabled) return "Kapalı"
+    val mag = user.earthquakeNotificationMinMagnitude
+    return if (mag != null) "${mag}+" else "Kapalı"
+}
+
+@Composable
+private fun StitchClickableRow(
+    icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    showDivider: Boolean,
+    isDark: Boolean,
+) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(iconBg, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+
+        if (showDivider) {
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = StitchSurfaceVariant.copy(alpha = if (isDark) 0.3f else 0.5f),
+            )
         }
     }
 }
