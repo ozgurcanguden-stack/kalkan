@@ -15,6 +15,8 @@ interface EmergencyAlertRepository {
         createdByUid: String,
         createdByName: String?,
     ): Result<Unit>
+
+    suspend fun getRecentAlerts(limit: Long = 10): Result<List<Map<String, Any>>>
 }
 
 @Singleton
@@ -45,5 +47,15 @@ class FirebaseEmergencyAlertRepository @Inject constructor(
             "source" to "admin_panel"
         )
         alertRef.set(data).await()
+    }
+
+    override suspend fun getRecentAlerts(limit: Long): Result<List<Map<String, Any>>> = runCatching {
+        val snapshot = firestore.collection("emergency_alerts")
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit)
+            .get()
+            .await()
+        
+        snapshot.documents.mapNotNull { it.data?.plus("id" to it.id) }
     }
 }

@@ -65,8 +65,11 @@ import com.zgrcan.kalkan.core.notification.NotificationNavigationTarget
 import com.zgrcan.kalkan.viewmodel.SettingsViewModel
 import com.zgrcan.kalkan.ui.screens.admin.AdminDashboardScreen
 import com.zgrcan.kalkan.ui.screens.admin.CreateAnnouncementScreen
-import com.zgrcan.kalkan.ui.screens.admin.AdminPlaceholderScreen
 import com.zgrcan.kalkan.ui.screens.admin.AdminEmergencyAlertScreen
+import com.zgrcan.kalkan.ui.screens.admin.AdminNotificationCenterScreen
+import com.zgrcan.kalkan.ui.screens.admin.AdminPlaceholderScreen
+import com.zgrcan.kalkan.ui.screens.admin.AdminSystemMonitorScreen
+import com.zgrcan.kalkan.ui.screens.admin.AdminUsersScreen
 import com.zgrcan.kalkan.viewmodel.AdminDashboardViewModel
 import com.zgrcan.kalkan.viewmodel.AnnouncementsViewModel
 import com.zgrcan.kalkan.viewmodel.AuthViewModel
@@ -600,14 +603,12 @@ fun KalkanNavHost(
                 )
             }
             composable(KalkanRoute.AdminUsers.route) {
-                AdminPlaceholderScreen(
-                    route = "admin_users",
+                AdminUsersScreen(
                     onBackClick = { navController.popBackStack() }
                 )
             }
             composable(KalkanRoute.AdminNotifications.route) {
-                AdminPlaceholderScreen(
-                    route = "admin_notifications",
+                AdminNotificationCenterScreen(
                     onBackClick = { navController.popBackStack() }
                 )
             }
@@ -622,8 +623,7 @@ fun KalkanNavHost(
                 )
             }
             composable(KalkanRoute.AdminSystemMonitor.route) {
-                AdminPlaceholderScreen(
-                    route = "admin_system_monitor",
+                AdminSystemMonitorScreen(
                     onBackClick = { navController.popBackStack() }
                 )
             }
