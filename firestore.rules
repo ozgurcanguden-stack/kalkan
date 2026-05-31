@@ -25,6 +25,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Emergency Alerts - Only Super Admin can read and write
+    match /emergency_alerts/{alertId} {
+      allow read, write: if isAdmin();
+    }
+
     // Users - Users can read/write their own document, Admins can do all
     match /users/{userId} {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());

@@ -1,5 +1,7 @@
 package com.zgrcan.kalkan.di
 
+import com.zgrcan.kalkan.data.alert.EmergencyAlertRepository
+import com.zgrcan.kalkan.data.alert.FirebaseEmergencyAlertRepository
 import com.zgrcan.kalkan.data.announcement.AnnouncementRepository
 import com.zgrcan.kalkan.data.announcement.FirebaseAnnouncementRepository
 import com.zgrcan.kalkan.data.auth.AuthRepository
@@ -86,4 +88,10 @@ abstract class RepositoryModule {
     abstract fun bindSettingsRepository(
         repository: com.zgrcan.kalkan.data.settings.FirebaseSettingsRepository,
     ): com.zgrcan.kalkan.data.settings.SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindEmergencyAlertRepository(
+        repository: FirebaseEmergencyAlertRepository,
+    ): EmergencyAlertRepository
 }

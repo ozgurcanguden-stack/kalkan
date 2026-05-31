@@ -15,6 +15,16 @@ interface AnnouncementData {
   status?: string;
 }
 
+interface EmergencyAlertData {
+  title?: string;
+  body?: string;
+  region?: string;
+  priority?: string;
+  target?: string;
+  source?: string;
+  status?: string;
+}
+
 interface SafetyStatusData {
   uid?: string;
   displayName?: string;
@@ -613,3 +623,109 @@ export const monitorEarthquakes = onSchedule("*/1 * * * *", async (event) => {
     });
   }
 });
+
+export const sendEmergencyAlertPush = onDocumentCreated(
+  "emergency_alerts/{alertId}",
+  async (event) => {
+    const alertId = event.params.alertId;
+    const snapshot = event.data;
+
+    if (!snapshot) {
+      logger.warn("Emergency alert snapshot missing", { alertId });
+      return;
+    }
+
+    const data = snapshot.data() as EmergencyAlertData;
+    const status = data.status ?? "";
+
+    if (status !== "published") {
+      logger.info("Skipping push: status is not published", {
+        alertId,
+        status,
+      });
+      return;
+    }
+
+    const title = (data.title ?? "").trim();
+    const body = (data.body ?? "").trim();
+
+    if (!title || !body) {
+      logger.warn("Skipping push: empty title or body", { alertId });
+      return;
+    }
+
+    const priority = (data.priority ?? "Önemli").trim();
+    const region = (data.region ?? "Tüm Türkiye").trim();
+    const target = data.target ?? "all_users";
+
+    const pushTitle = "Acil Durum Uyarısı";
+    const pushBody = `${title} - ${body}`;
+
+    // Use existing collectEligibleTokens logic
+    const tokens = await collectEligibleTokens("all");
+    const tokenCount = tokens.length;
+
+    logger.info("Emergency alert push started", {
+      alertId,
+      target,
+      tokenCount,
+    });
+
+    if (tokenCount === 0) {
+      logger.info("Emergency alert push skipped: no eligible tokens", { alertId });
+      return;
+    }
+
+    const dataPayload: Record<string, string> = {
+      type: "emergency_alert",
+      alertId,
+      title,
+      body,
+      priority,
+      region,
+      target,
+      source: "admin_panel",
+      createdAt: nowIso(),
+    };
+
+    const messaging = admin.messaging();
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (let offset = 0; offset < tokens.length; offset += FCM_BATCH_SIZE) {
+      const batch = tokens.slice(offset, offset + FCM_BATCH_SIZE);
+
+      try {
+        const response = await messaging.sendEachForMulticast({
+          tokens: batch,
+          notification: { title: pushTitle, body: pushBody },
+          data: dataPayload,
+          android: {
+            priority: "high",
+            notification: {
+              channelId: "kalkan_alerts",
+              clickAction: "com.zgrcan.kalkan.NOTIFICATION_CLICK",
+            },
+          },
+        });
+
+        successCount += response.successCount;
+        failureCount += response.failureCount;
+      } catch (error) {
+        failureCount += batch.length;
+        logger.error("FCM multicast batch failed for emergency alert", {
+          alertId,
+          batchSize: batch.length,
+          error,
+        });
+      }
+    }
+
+    logger.info("Emergency alert push completed", {
+      alertId,
+      tokenCount,
+      successCount,
+      failureCount,
+    });
+  },
+);

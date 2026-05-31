@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -90,9 +91,10 @@ fun CreateAnnouncementScreen(
             ) {
                 CreateAnnouncementTopBar(onBackClick = onBackClick)
                 Text(
-                    text = "Baslik, mesaj ve hedef kitleyi secerek duyuruyu Firestore'a kaydedin.",
+                    text = "Bu duyuru seçtiğiniz hedef kitleye push bildirimi olarak gönderilecektir.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = KalkanTextMuted,
+                    color = KalkanBlue,
+                    fontWeight = FontWeight.Medium
                 )
                 OutlinedTextField(
                     value = uiState.title,
@@ -129,24 +131,25 @@ fun CreateAnnouncementScreen(
                     label = { it.label },
                     onSelected = viewModel::onPriorityChange,
                 )
+                Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = { viewModel.createAnnouncement(createdByUid, createdByName) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = KalkanBlue),
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.height(22.dp),
+                            modifier = Modifier.size(24.dp),
                             color = MaterialTheme.colorScheme.onPrimary,
                             strokeWidth = 2.dp,
                         )
                     } else {
-                        Text("Duyuruyu Kaydet", fontWeight = FontWeight.Bold)
+                        Text("Duyuruyu Yayınla", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
 
@@ -175,24 +178,28 @@ private fun CreateAnnouncementTopBar(onBackClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBackClick) {
-            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Geri don", tint = MaterialTheme.colorScheme.primary)
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .padding(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = "Geri",
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
         }
+        Spacer(modifier = Modifier.size(16.dp))
         Column {
             Text(
-                text = "Duyuru Olustur",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary,
+                text = "Duyuru Oluştur",
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = "Push gonderimi bu asamada yapilmaz",
-                style = MaterialTheme.typography.bodyMedium,
-                color = KalkanTextMuted,
+                color = MaterialTheme.colorScheme.onBackground,
             )
         }
     }

@@ -66,6 +66,7 @@ import com.zgrcan.kalkan.viewmodel.SettingsViewModel
 import com.zgrcan.kalkan.ui.screens.admin.AdminDashboardScreen
 import com.zgrcan.kalkan.ui.screens.admin.CreateAnnouncementScreen
 import com.zgrcan.kalkan.ui.screens.admin.AdminPlaceholderScreen
+import com.zgrcan.kalkan.ui.screens.admin.AdminEmergencyAlertScreen
 import com.zgrcan.kalkan.viewmodel.AdminDashboardViewModel
 import com.zgrcan.kalkan.viewmodel.AnnouncementsViewModel
 import com.zgrcan.kalkan.viewmodel.AuthViewModel
@@ -593,9 +594,9 @@ fun KalkanNavHost(
                 )
             }
             composable(KalkanRoute.AdminEmergencyAlert.route) {
-                AdminPlaceholderScreen(
-                    route = "admin_emergency_alert",
-                    onBackClick = { navController.popBackStack() }
+                AdminEmergencyAlertScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onPublishSuccess = { navController.popBackStack() }
                 )
             }
             composable(KalkanRoute.AdminUsers.route) {
