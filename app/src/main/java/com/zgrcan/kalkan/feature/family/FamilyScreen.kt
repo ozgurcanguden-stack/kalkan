@@ -137,6 +137,7 @@ fun FamilyScreen(
     onClearFamilySuccessMessage: () -> Unit,
     onLeaveFamilyGroup: (String) -> Unit,
     onDeleteFamilyGroup: (String) -> Unit,
+    onRequestFamilyStatusCheck: () -> Unit,
     onOpenFamilyMap: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -196,7 +197,10 @@ fun FamilyScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             FamilyTopBar()
-            SafetyCheckCard()
+            SafetyCheckCard(
+                onClick = onRequestFamilyStatusCheck,
+                isLoading = familyGroupState.isActionLoading,
+            )
 
             when {
                 familyGroupState.isLoading -> {
@@ -464,11 +468,15 @@ private fun FamilyTopBar() {
 }
 
 @Composable
-private fun SafetyCheckCard() {
+private fun SafetyCheckCard(
+    onClick: () -> Unit,
+    isLoading: Boolean,
+) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = PrimaryContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier.clickable(enabled = !isLoading, onClick = onClick),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(18.dp),
@@ -480,7 +488,15 @@ private fun SafetyCheckCard() {
                 Text("Hızlı durum kontrolü başlat", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFBEC6E0))
             }
             Box(modifier = Modifier.size(48.dp).background(KalkanBlue, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.HealthAndSafety, contentDescription = null, tint = Color.White)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Icon(Icons.Rounded.HealthAndSafety, contentDescription = null, tint = Color.White)
+                }
             }
         }
     }

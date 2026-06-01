@@ -86,6 +86,17 @@ class SafetyStatusViewModel @Inject constructor(
 
         submitJob = viewModelScope.launch {
             submitMutex.withLock {
+                val cooldownMessage = resolveCooldownMessage(statusType, user)
+                if (cooldownMessage != null) {
+                    _uiState.update {
+                        it.copy(
+                            snackbarMessage = cooldownMessage,
+                            isError = true,
+                        )
+                    }
+                    return@withLock
+                }
+
                 _uiState.update {
                     it.copy(
                         isSubmitting = true,
@@ -133,6 +144,57 @@ class SafetyStatusViewModel @Inject constructor(
         }
     }
 
+    private suspend fun resolveCooldownMessage(
+        statusType: SafetyStatusType,
+        user: AppUser,
+    ): String? {
+        if (statusType == SafetyStatusType.SAFE) return null
+        val cooldownSnapshot = safetyStatusRepository.getStatusCooldownSnapshot(user.uid).getOrNull()
+            ?: return null
+        val now = System.currentTimeMillis()
+        val remainingMs = when (statusType) {
+            SafetyStatusType.SOS -> cooldownRemaining(
+                now = now,
+                lastSentAt = cooldownSnapshot.lastSosAt,
+                cooldownMs = SAFETY_ACTION_COOLDOWN_MS,
+            )
+            SafetyStatusType.NEED_HELP -> cooldownRemaining(
+                now = now,
+                lastSentAt = cooldownSnapshot.lastHelpRequestAt,
+                cooldownMs = SAFETY_ACTION_COOLDOWN_MS,
+            )
+            SafetyStatusType.SHARE_LOCATION -> cooldownRemaining(
+                now = now,
+                lastSentAt = cooldownSnapshot.lastLocationShareAt,
+                cooldownMs = SAFETY_ACTION_COOLDOWN_MS,
+            )
+            SafetyStatusType.SAFE -> 0L
+        }
+        if (remainingMs <= 0L) return null
+        val remainingSeconds = millisToCeilSeconds(remainingMs)
+        return when (statusType) {
+            SafetyStatusType.SOS ->
+                "SOS çağrınız kısa süre önce gönderildi. Tekrar göndermek için $remainingSeconds saniye bekleyin."
+            SafetyStatusType.NEED_HELP ->
+                "Yardım talebiniz kısa süre önce gönderildi. Tekrar göndermek için $remainingSeconds saniye bekleyin."
+            SafetyStatusType.SHARE_LOCATION ->
+                "Konum bilginiz kısa süre önce paylaşıldı. Tekrar paylaşmak için $remainingSeconds saniye bekleyin."
+            SafetyStatusType.SAFE -> null
+        }
+    }
+
+    private fun cooldownRemaining(
+        now: Long,
+        lastSentAt: Long?,
+        cooldownMs: Long,
+    ): Long {
+        val last = lastSentAt ?: return 0L
+        val elapsed = now - last
+        return (cooldownMs - elapsed).coerceAtLeast(0L)
+    }
+
+    private fun millisToCeilSeconds(ms: Long): Long = ((ms + 999L) / 1000L).coerceAtLeast(1L)
+
     private suspend fun resolveLocationIfNeeded(
         statusType: SafetyStatusType,
         permissionGranted: Boolean?,
@@ -173,6 +235,10 @@ class SafetyStatusViewModel @Inject constructor(
 
     fun clearSnackbarMessage() {
         _uiState.update { it.copy(snackbarMessage = null) }
+    }
+
+    companion object {
+        private const val SAFETY_ACTION_COOLDOWN_MS = 60_000L
     }
 }
 

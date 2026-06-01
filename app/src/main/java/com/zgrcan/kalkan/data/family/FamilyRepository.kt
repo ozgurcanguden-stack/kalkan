@@ -16,4 +16,14 @@ interface FamilyRepository {
 
     /** Tek okuma: grup yoksa kullanıcıdaki familyGroupId / familyInviteCode temizlenir. */
     suspend fun clearStaleFamilyGroupIfMissing(user: AppUser): Result<Boolean>
+
+    suspend fun requestFamilyStatusCheck(
+        user: AppUser,
+        groupId: String,
+    ): Result<FamilyStatusCheckResult>
 }
+
+data class FamilyStatusCheckResult(
+    val accepted: Boolean,
+    val remainingMs: Long = 0L,
+)

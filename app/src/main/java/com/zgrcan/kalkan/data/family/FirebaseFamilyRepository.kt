@@ -18,6 +18,9 @@ class FirebaseFamilyRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
 ) : FamilyRepository {
+    companion object {
+        private const val FAMILY_CHECK_COOLDOWN_MS = 5 * 60 * 1000L
+    }
 
     override fun observeFamilyGroup(groupId: String): Flow<FamilyGroup?> = callbackFlow {
         if (groupId.isBlank()) {
@@ -412,5 +415,52 @@ class FirebaseFamilyRepository @Inject constructor(
         ).await()
         Log.d("FirebaseFamilyRepository", "Cleared stale familyGroupId for user=${user.uid}")
         true
+    }
+
+    override suspend fun requestFamilyStatusCheck(
+        user: AppUser,
+        groupId: String,
+    ): Result<FamilyStatusCheckResult> = runCatching {
+        require(user.uid.isNotBlank()) { "Geçersiz kullanıcı kimliği." }
+        require(groupId.isNotBlank()) { "Aile grubu bulunamadı." }
+        val authUid = auth.currentUser?.uid
+        require(!authUid.isNullOrBlank() && authUid == user.uid) { "Kullanıcı oturumu bulunamadı." }
+
+        val now = System.currentTimeMillis()
+        val userRef = firestore.collection("users").document(user.uid)
+        val lastRequestAt = userRef.get().await().getLong("lastFamilyCheckRequestAt")
+        val remainingMs = if (lastRequestAt != null) {
+            (FAMILY_CHECK_COOLDOWN_MS - (now - lastRequestAt)).coerceAtLeast(0L)
+        } else {
+            0L
+        }
+
+        if (remainingMs > 0L) {
+            return@runCatching FamilyStatusCheckResult(
+                accepted = false,
+                remainingMs = remainingMs,
+            )
+        }
+
+        val requestRef = firestore.collection("family_check_requests").document()
+        val requesterName = user.displayName.ifBlank { "Kullanıcı" }
+        firestore.runBatch { batch ->
+            batch.set(
+                requestRef,
+                mapOf(
+                    "id" to requestRef.id,
+                    "requesterUid" to user.uid,
+                    "requesterName" to requesterName,
+                    "groupId" to groupId,
+                    "createdAt" to now,
+                ),
+            )
+            batch.update(
+                userRef,
+                mapOf("lastFamilyCheckRequestAt" to now),
+            )
+        }.await()
+
+        FamilyStatusCheckResult(accepted = true)
     }
 }

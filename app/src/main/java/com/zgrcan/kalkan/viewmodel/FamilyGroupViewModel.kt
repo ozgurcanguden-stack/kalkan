@@ -287,6 +287,45 @@ class FamilyGroupViewModel @Inject constructor(
         _uiState.update { it.copy(error = null) }
     }
 
+    fun requestFamilyStatusCheck() {
+        val user = requireGoogleSignedInUser() ?: return
+        val groupId = user.familyGroupId
+        if (groupId.isNullOrBlank()) {
+            _uiState.update { it.copy(error = "Durum kontrolü için önce bir aile grubuna katılın.") }
+            return
+        }
+
+        _uiState.update { it.copy(isActionLoading = true, error = null) }
+        viewModelScope.launch {
+            familyRepository.requestFamilyStatusCheck(user, groupId)
+                .onSuccess { result ->
+                    if (result.accepted) {
+                        _uiState.update {
+                            it.copy(
+                                isActionLoading = false,
+                                actionSuccessMessage = "Durum kontrol isteği aile üyelerinize gönderildi.",
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isActionLoading = false,
+                                error = "Durum kontrol isteği kısa süre önce gönderildi. Tekrar göndermek için ${formatRemaining(result.remainingMs)} bekleyin.",
+                            )
+                        }
+                    }
+                }
+                .onFailure {
+                    _uiState.update {
+                        it.copy(
+                            isActionLoading = false,
+                            error = "Durum kontrol isteği gönderilemedi. Lütfen tekrar deneyin.",
+                        )
+                    }
+                }
+        }
+    }
+
     private fun requireGoogleSignedInUser(): AppUser? {
         val user = activeUser
         return when {
@@ -299,6 +338,17 @@ class FamilyGroupViewModel @Inject constructor(
                 null
             }
             else -> user
+        }
+    }
+
+    private fun formatRemaining(remainingMs: Long): String {
+        val totalSeconds = ((remainingMs + 999L) / 1000L).coerceAtLeast(1L)
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return if (minutes > 0) {
+            "$minutes dakika $seconds saniye"
+        } else {
+            "$seconds saniye"
         }
     }
 }

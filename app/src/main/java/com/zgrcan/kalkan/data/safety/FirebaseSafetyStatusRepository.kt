@@ -3,6 +3,7 @@ package com.zgrcan.kalkan.data.safety
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.zgrcan.kalkan.model.SafetyStatus
 import com.zgrcan.kalkan.model.SafetyStatusType
@@ -43,6 +44,24 @@ class FirebaseSafetyStatusRepository @Inject constructor(
         )
         document.set(status.toFirestoreMap()).await()
 
+        val userCooldownUpdate = when (statusType) {
+            SafetyStatusType.SOS -> mapOf(
+                "lastSosAt" to createdAt,
+            )
+            SafetyStatusType.NEED_HELP -> mapOf(
+                "lastHelpRequestAt" to createdAt,
+            )
+            SafetyStatusType.SHARE_LOCATION -> mapOf(
+                "lastLocationShareAt" to createdAt,
+            )
+            SafetyStatusType.SAFE -> mapOf(
+                "lastSosAt" to FieldValue.delete(),
+                "lastHelpRequestAt" to FieldValue.delete(),
+                "lastLocationShareAt" to FieldValue.delete(),
+            )
+        }
+        firestore.collection("users").document(uid).update(userCooldownUpdate).await()
+
         // 2. Eğer users/{uid}.familyGroupId varsa, family_groups/{groupId}/members/{uid} dökümanı güncellensin.
         try {
             val userSnapshot = firestore.collection("users").document(uid).get().await()
@@ -78,6 +97,16 @@ class FirebaseSafetyStatusRepository @Inject constructor(
             .await()
 
         snapshot.documents.firstOrNull()?.toSafetyStatus()
+    }
+
+    override suspend fun getStatusCooldownSnapshot(uid: String): Result<StatusCooldownSnapshot> = runCatching {
+        require(uid.isNotBlank()) { "Kullanıcı kimliği boş olamaz." }
+        val snapshot = firestore.collection("users").document(uid).get().await()
+        StatusCooldownSnapshot(
+            lastSosAt = snapshot.getLong("lastSosAt"),
+            lastHelpRequestAt = snapshot.getLong("lastHelpRequestAt"),
+            lastLocationShareAt = snapshot.getLong("lastLocationShareAt"),
+        )
     }
 
     private val safetyStatusCollection

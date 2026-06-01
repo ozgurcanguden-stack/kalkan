@@ -14,4 +14,12 @@ interface SafetyStatusRepository {
     ): Result<SafetyStatus>
 
     suspend fun getLatestSafetyStatus(uid: String): Result<SafetyStatus?>
+
+    suspend fun getStatusCooldownSnapshot(uid: String): Result<StatusCooldownSnapshot>
 }
+
+data class StatusCooldownSnapshot(
+    val lastSosAt: Long? = null,
+    val lastHelpRequestAt: Long? = null,
+    val lastLocationShareAt: Long? = null,
+)

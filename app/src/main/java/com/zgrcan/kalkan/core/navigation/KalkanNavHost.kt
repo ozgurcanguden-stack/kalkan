@@ -446,6 +446,7 @@ fun KalkanNavHost(
                     onClearFamilySuccessMessage = familyGroupViewModel::clearActionSuccessMessage,
                     onLeaveFamilyGroup = familyGroupViewModel::leaveFamilyGroup,
                     onDeleteFamilyGroup = familyGroupViewModel::deleteFamilyGroup,
+                    onRequestFamilyStatusCheck = familyGroupViewModel::requestFamilyStatusCheck,
                     onOpenFamilyMap = {
                         if (user?.isGuest == true) {
                             emergencyContactsViewModel.showActionMessage(
