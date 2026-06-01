@@ -73,8 +73,16 @@ class AuthViewModel @Inject constructor(
 
     fun signInWithGoogleIdToken(idToken: String) {
         pendingLoginSuccessMessage = "Google ile giriş başarılı."
+        val previousAnonymousUid = authRepository.getCurrentUser()
+            ?.takeIf { it.isAnonymous }
+            ?.uid
         launchSignIn {
             authRepository.signInWithGoogleIdToken(idToken)
+                .onSuccess { firebaseUser ->
+                    if (previousAnonymousUid != null && previousAnonymousUid != firebaseUser.uid) {
+                        userRepository.markUserInactive(previousAnonymousUid)
+                    }
+                }
         }
     }
 

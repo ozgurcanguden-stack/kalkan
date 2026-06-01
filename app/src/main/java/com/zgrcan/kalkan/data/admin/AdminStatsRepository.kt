@@ -8,6 +8,8 @@ import javax.inject.Singleton
 
 interface AdminStatsRepository {
     suspend fun getTotalUsersCount(): Result<Long>
+    suspend fun getGuestUsersCount(): Result<Long>
+    suspend fun getActiveDevicesCount(): Result<Long>
     suspend fun getEarthquakeEnabledUsersCount(): Result<Long>
     suspend fun getTotalFamilyGroupsCount(): Result<Long>
     suspend fun getActiveSosCount(): Result<Long>
@@ -21,14 +23,39 @@ class FirebaseAdminStatsRepository @Inject constructor(
 
     override suspend fun getTotalUsersCount(): Result<Long> = runCatching {
         val query = firestore.collection("users")
+            .whereEqualTo("isAnonymous", false)
         val countTask = query.count().get(AggregateSource.SERVER).await()
         countTask.count
+    }
+
+    override suspend fun getGuestUsersCount(): Result<Long> = runCatching {
+        val query = firestore.collection("users")
+            .whereEqualTo("isAnonymous", true)
+        val countTask = query.count().get(AggregateSource.SERVER).await()
+        countTask.count
+    }
+
+    override suspend fun getActiveDevicesCount(): Result<Long> = runCatching {
+        val byFcm = firestore.collection("users")
+            .whereNotEqualTo("fcmToken", "")
+            .count()
+            .get(AggregateSource.SERVER)
+            .await()
+            .count
+        val byDevice = firestore.collection("users")
+            .whereNotEqualTo("deviceId", "")
+            .count()
+            .get(AggregateSource.SERVER)
+            .await()
+            .count
+        maxOf(byFcm, byDevice)
     }
 
     override suspend fun getEarthquakeEnabledUsersCount(): Result<Long> = runCatching {
         // We will try counting users where earthquakeNotificationsEnabled == true
         // If it fails due to missing index, we return an error so the UI can gracefully show "N/A"
         val query = firestore.collection("users")
+            .whereEqualTo("isAnonymous", false)
             .whereEqualTo("earthquakeNotificationsEnabled", true)
         val countTask = query.count().get(AggregateSource.SERVER).await()
         countTask.count

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -68,6 +69,18 @@ fun AdminUsersScreen(
                 value = uiState.totalUsers,
                 icon = Icons.Rounded.Person,
                 tint = KalkanBlue
+            )
+            UserStatCard(
+                title = "Misafir Kullanıcılar",
+                value = uiState.guestUsers,
+                icon = Icons.Rounded.Person,
+                tint = Color(0xFF7C3AED)
+            )
+            UserStatCard(
+                title = "Aktif Cihazlar",
+                value = uiState.activeDevices,
+                icon = Icons.Rounded.PhoneAndroid,
+                tint = Color(0xFF0EA5E9)
             )
             UserStatCard(
                 title = "Deprem Bildirimi Açık",

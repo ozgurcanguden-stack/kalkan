@@ -14,6 +14,8 @@ import javax.inject.Inject
 data class AdminUsersState(
     val isLoading: Boolean = false,
     val totalUsers: String = "-",
+    val guestUsers: String = "-",
+    val activeDevices: String = "-",
     val earthquakeEnabledUsers: String = "-",
     val totalFamilies: String = "-",
     val activeSosCount: String = "-",
@@ -38,6 +40,8 @@ class AdminUsersViewModel @Inject constructor(
 
             // Loading concurrently would be ideal, but for simplicity we run sequentially or just catch individual errors
             val totalUsersResult = adminStatsRepository.getTotalUsersCount()
+            val guestUsersResult = adminStatsRepository.getGuestUsersCount()
+            val activeDevicesResult = adminStatsRepository.getActiveDevicesCount()
             val earthquakeEnabledResult = adminStatsRepository.getEarthquakeEnabledUsersCount()
             val totalFamiliesResult = adminStatsRepository.getTotalFamilyGroupsCount()
             val activeSosResult = adminStatsRepository.getActiveSosCount()
@@ -46,6 +50,8 @@ class AdminUsersViewModel @Inject constructor(
                 state.copy(
                     isLoading = false,
                     totalUsers = totalUsersResult.getOrNull()?.toString() ?: "N/A",
+                    guestUsers = guestUsersResult.getOrNull()?.toString() ?: "N/A",
+                    activeDevices = activeDevicesResult.getOrNull()?.toString() ?: "N/A",
                     earthquakeEnabledUsers = earthquakeEnabledResult.getOrNull()?.toString() ?: "N/A",
                     totalFamilies = totalFamiliesResult.getOrNull()?.toString() ?: "N/A",
                     activeSosCount = activeSosResult.getOrNull()?.toString() ?: "N/A"

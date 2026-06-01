@@ -9,6 +9,11 @@ data class AppUser(
     val isAdmin: Boolean = false,
     val createdAt: Long = 0L,
     val lastLoginAt: Long = 0L,
+    val lastActiveAt: Long = 0L,
+    val isAnonymous: Boolean = false,
+    val provider: String = "",
+    val isActive: Boolean = true,
+    val deviceId: String? = null,
     val fcmToken: String? = null,
     val notificationPermissionGranted: Boolean = false,
     val lastFcmTokenUpdatedAt: Long = 0L,
@@ -18,5 +23,5 @@ data class AppUser(
     val earthquakeNotificationMinMagnitude: Double? = null,
 ) {
     val isGuest: Boolean
-        get() = email.isNullOrBlank()
+        get() = isAnonymous || email.isNullOrBlank()
 }

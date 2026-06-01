@@ -38,6 +38,8 @@ class FirebaseUserRepository @Inject constructor(
         val userRef = users.document(firebaseUser.uid)
         val now = System.currentTimeMillis()
         val snapshot = userRef.get().await()
+        val isAnonymous = firebaseUser.isAnonymous
+        val provider = if (isAnonymous) "anonymous" else "google"
 
         if (!snapshot.exists()) {
             val user = AppUser(
@@ -49,13 +51,23 @@ class FirebaseUserRepository @Inject constructor(
                 isAdmin = false,
                 createdAt = now,
                 lastLoginAt = now,
+                lastActiveAt = now,
+                isAnonymous = isAnonymous,
+                provider = provider,
+                isActive = true,
                 earthquakeNotificationsEnabled = true,
                 earthquakeNotificationMinMagnitude = 4.0,
             )
             userRef.set(user.toFirestoreMap()).await()
             user
         } else {
-            val updates = mutableMapOf<String, Any>("lastLoginAt" to now)
+            val updates = mutableMapOf<String, Any>(
+                "lastLoginAt" to now,
+                "lastActiveAt" to now,
+                "isAnonymous" to isAnonymous,
+                "provider" to provider,
+                "isActive" to true,
+            )
             if (snapshot.getString("backupFrequency").isNullOrBlank()) {
                 updates["backupFrequency"] = BackupFrequency.DAILY.key
             }
@@ -69,6 +81,16 @@ class FirebaseUserRepository @Inject constructor(
         }
     }
 
+    override suspend fun markUserInactive(uid: String): Result<Unit> = runCatching {
+        if (uid.isBlank()) return@runCatching
+        users.document(uid).update(
+            mapOf(
+                "isActive" to false,
+                "lastActiveAt" to System.currentTimeMillis(),
+            ),
+        ).await()
+    }
+
     private fun FirebaseUser.toAppUserFromAuth(lastLoginAt: Long): AppUser =
         AppUser(
             uid = uid,
@@ -79,6 +101,10 @@ class FirebaseUserRepository @Inject constructor(
             isAdmin = false,
             createdAt = lastLoginAt,
             lastLoginAt = lastLoginAt,
+            lastActiveAt = lastLoginAt,
+            isAnonymous = isAnonymous,
+            provider = if (isAnonymous) "anonymous" else "google",
+            isActive = true,
             earthquakeNotificationsEnabled = true,
             earthquakeNotificationMinMagnitude = 4.0,
         )
@@ -95,6 +121,11 @@ class FirebaseUserRepository @Inject constructor(
         "isAdmin" to isAdmin,
         "createdAt" to createdAt,
         "lastLoginAt" to lastLoginAt,
+        "lastActiveAt" to lastActiveAt,
+        "isAnonymous" to isAnonymous,
+        "provider" to provider,
+        "isActive" to isActive,
+        "deviceId" to deviceId,
         "fcmToken" to fcmToken,
         "notificationPermissionGranted" to notificationPermissionGranted,
         "lastFcmTokenUpdatedAt" to lastFcmTokenUpdatedAt,
@@ -118,6 +149,11 @@ class FirebaseUserRepository @Inject constructor(
             isAdmin = getBoolean("isAdmin") == true && role == UserRole.SUPER_ADMIN,
             createdAt = getNumberAsLong("createdAt") ?: 0L,
             lastLoginAt = getNumberAsLong("lastLoginAt") ?: 0L,
+            lastActiveAt = getNumberAsLong("lastActiveAt") ?: 0L,
+            isAnonymous = getBoolean("isAnonymous") == true,
+            provider = getString("provider").orEmpty(),
+            isActive = getBoolean("isActive") != false,
+            deviceId = getString("deviceId"),
             fcmToken = getString("fcmToken"),
             notificationPermissionGranted = getBoolean("notificationPermissionGranted") == true,
             lastFcmTokenUpdatedAt = getNumberAsLong("lastFcmTokenUpdatedAt") ?: 0L,
