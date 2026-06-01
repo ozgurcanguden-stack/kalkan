@@ -76,20 +76,35 @@ fun FamilyMapPreview(
 ) {
     val locatableMembers = remember(members) { members.withSharedMapLocations() }
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpenFamilyMap),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, KalkanBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Box(
+        Text(
+            text = "Aile Haritası",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = "Aile üyelerinizin konumlarını harita üzerinde görüntüleyin.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = KalkanTextMuted,
+        )
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(PreviewHeight.dp),
+                .clickable(onClick = onOpenFamilyMap),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, KalkanBorder),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(PreviewHeight.dp),
+            ) {
             when {
                 isLoading && hasGroup -> FamilyMapPreviewLoading()
                 MapsConfig.isConfigured && hasGroup && locatableMembers.isNotEmpty() -> {
@@ -106,7 +121,8 @@ fun FamilyMapPreview(
                 )
             }
 
-            FamilyMapPreviewOverlay(onOpenFamilyMap = onOpenFamilyMap)
+                FamilyMapPreviewOverlay(onOpenFamilyMap = onOpenFamilyMap)
+            }
         }
     }
 }
@@ -211,13 +227,6 @@ private fun FamilyMapPreviewPlaceholder(
                 modifier = Modifier.size(40.dp),
             )
             Text(
-                text = if (hasGroup) "Aile Haritası" else "Aile Konumları",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
-            Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = KalkanTextMuted,
@@ -244,7 +253,7 @@ private fun BoxScope.FamilyMapPreviewOverlay(onOpenFamilyMap: () -> Unit) {
             .padding(12.dp)
             .background(Color.White.copy(alpha = 0.92f), CircleShape),
     ) {
-        Icon(Icons.Rounded.Fullscreen, contentDescription = "Haritada gör")
+        Icon(Icons.Rounded.Fullscreen, contentDescription = "Haritayı aç")
     }
 
     Row(
@@ -265,7 +274,7 @@ private fun BoxScope.FamilyMapPreviewOverlay(onOpenFamilyMap: () -> Unit) {
             modifier = Modifier.size(16.dp),
         )
         Text(
-            text = "Haritada Gör",
+            text = "Haritayı Aç",
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.labelLarge,

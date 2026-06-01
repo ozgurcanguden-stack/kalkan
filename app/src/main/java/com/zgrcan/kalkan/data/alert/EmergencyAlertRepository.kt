@@ -17,6 +17,8 @@ interface EmergencyAlertRepository {
     ): Result<Unit>
 
     suspend fun getRecentAlerts(limit: Long = 10): Result<List<Map<String, Any>>>
+
+    suspend fun deleteAlert(alertId: String): Result<Unit>
 }
 
 @Singleton
@@ -57,5 +59,10 @@ class FirebaseEmergencyAlertRepository @Inject constructor(
             .await()
         
         snapshot.documents.mapNotNull { it.data?.plus("id" to it.id) }
+    }
+
+    override suspend fun deleteAlert(alertId: String): Result<Unit> = runCatching {
+        require(alertId.isNotBlank()) { "Acil uyarı kimliği boş olamaz." }
+        firestore.collection("emergency_alerts").document(alertId).delete().await()
     }
 }

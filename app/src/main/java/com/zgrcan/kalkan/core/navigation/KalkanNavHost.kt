@@ -613,7 +613,10 @@ fun KalkanNavHost(
                     hasAdminAccess = authState.hasAdminAccess,
                     recentAnnouncements = adminDashboardState.recentAnnouncements,
                     isLoadingAnnouncements = adminDashboardState.isLoadingAnnouncements,
+                    isDeletingAnnouncement = adminDashboardState.isDeletingAnnouncement,
                     announcementsError = adminDashboardState.announcementsError,
+                    snackbarMessage = adminDashboardState.snackbarMessage,
+                    isSnackbarError = adminDashboardState.isSnackbarError,
                     onBackClick = {
                         navController.navigate(KalkanRoute.Profile.route) {
                             popUpTo(KalkanRoute.Profile.route) {
@@ -628,6 +631,13 @@ fun KalkanNavHost(
                         }
                     },
                     onRefreshAnnouncements = adminDashboardViewModel::loadRecentAnnouncements,
+                    onDeleteAnnouncement = { announcementId ->
+                        adminDashboardViewModel.deleteAnnouncement(
+                            announcementId,
+                            canDelete = authState.hasAdminAccess,
+                        )
+                    },
+                    onDismissSnackbar = adminDashboardViewModel::clearSnackbarMessage,
                 )
             }
             composable(KalkanRoute.CreateAnnouncement.route) {
@@ -660,7 +670,8 @@ fun KalkanNavHost(
             }
             composable(KalkanRoute.AdminNotifications.route) {
                 AdminNotificationCenterScreen(
-                    onBackClick = { navController.popBackStack() }
+                    hasAdminAccess = authState.hasAdminAccess,
+                    onBackClick = { navController.popBackStack() },
                 )
             }
             composable(KalkanRoute.AdminEarthquakeMonitor.route) {

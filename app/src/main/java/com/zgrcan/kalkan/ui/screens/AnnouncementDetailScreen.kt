@@ -157,7 +157,7 @@ private fun DetailTopBar(onBackClick: () -> Unit) {
             )
         }
         Text(
-            text = "Duyuru Detayi",
+            text = "Duyuru detayı",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,

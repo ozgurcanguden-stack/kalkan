@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -124,6 +125,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     var pendingLocationStatusType by remember { mutableStateOf<SafetyStatusType?>(null) }
+    var showEmergency112Dialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     fun hasLocationPermission(): Boolean {
@@ -204,13 +206,7 @@ fun HomeScreen(
                 onShareLocationClick = { handleSafetyStatusClick(SafetyStatusType.SHARE_LOCATION) },
                 onSosClick = { handleSafetyStatusClick(SafetyStatusType.SOS) },
             )
-            Emergency112CallBar(
-                onClick = {
-                    if (!EmergencyIntentHelper.openEmergency112Dialer(context)) {
-                        Toast.makeText(context, "Arama başlatılamadı.", Toast.LENGTH_SHORT).show()
-                    }
-                },
-            )
+            Emergency112CallBar(onClick = { showEmergency112Dialog = true })
             AnnouncementsSection(
                 state = announcementsState,
                 onAnnouncementClick = onAnnouncementClick,
@@ -243,6 +239,42 @@ fun HomeScreen(
                 .align(Alignment.BottomCenter)
                 .padding(16.dp),
         )
+
+        if (showEmergency112Dialog) {
+            AlertDialog(
+                onDismissRequest = { showEmergency112Dialog = false },
+                title = {
+                    Text(
+                        text = "112 Acil Çağrı",
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
+                text = {
+                    Text(
+                        text = "112 Acil Çağrı aranacak.\nDevam etmek istiyor musunuz?",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showEmergency112Dialog = false
+                            if (!EmergencyIntentHelper.openEmergency112Dialer(context)) {
+                                Toast.makeText(context, "Arama başlatılamadı.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Emergency112Red),
+                    ) {
+                        Text("Ara")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEmergency112Dialog = false }) {
+                        Text("İptal")
+                    }
+                },
+            )
+        }
     }
 }
 

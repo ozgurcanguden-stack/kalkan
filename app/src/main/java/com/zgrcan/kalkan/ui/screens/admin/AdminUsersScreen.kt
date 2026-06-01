@@ -4,12 +4,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -26,90 +31,91 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.zgrcan.kalkan.core.design.components.KalkanCard
 import com.zgrcan.kalkan.core.design.theme.KalkanBlue
 import com.zgrcan.kalkan.core.design.theme.KalkanRed
 import com.zgrcan.kalkan.core.design.theme.KalkanTextMuted
+import com.zgrcan.kalkan.viewmodel.AdminUsersState
 import com.zgrcan.kalkan.viewmodel.AdminUsersViewModel
 
 @Composable
 fun AdminUsersScreen(
     onBackClick: () -> Unit,
-    viewModel: AdminUsersViewModel = hiltViewModel()
+    viewModel: AdminUsersViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val stats = remember(uiState) { uiState.toUserStats() }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .background(MaterialTheme.colorScheme.background),
     ) {
-        AdminUsersTopBar(onBackClick = onBackClick)
+        AdminUsersTopBar(
+            onBackClick = onBackClick,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
 
-        if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = KalkanBlue)
+        when {
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = KalkanBlue)
+                }
             }
-        } else if (uiState.totalUsers == "N/A" && uiState.totalUsers == "0" && uiState.totalFamilies == "N/A" && uiState.activeSosCount == "N/A") {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Henüz veri yok", color = KalkanTextMuted, style = MaterialTheme.typography.bodyLarge)
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(stats.chunked(2), key = { row -> row.first().title }) { rowStats ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            rowStats.forEach { stat ->
+                                CompactUserStatCard(
+                                    stat = stat,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (rowStats.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
             }
-        } else {
-            UserStatCard(
-                title = "Toplam Kullanıcı",
-                value = uiState.totalUsers,
-                icon = Icons.Rounded.Person,
-                tint = KalkanBlue
-            )
-            UserStatCard(
-                title = "Misafir Kullanıcılar",
-                value = uiState.guestUsers,
-                icon = Icons.Rounded.Person,
-                tint = Color(0xFF7C3AED)
-            )
-            UserStatCard(
-                title = "Aktif Cihazlar",
-                value = uiState.activeDevices,
-                icon = Icons.Rounded.PhoneAndroid,
-                tint = Color(0xFF0EA5E9)
-            )
-            UserStatCard(
-                title = "Deprem Bildirimi Açık",
-                value = uiState.earthquakeEnabledUsers,
-                icon = Icons.Rounded.NotificationsActive,
-                tint = Color(0xFF10B981) // Green
-            )
-            UserStatCard(
-                title = "Toplam Aile Grubu",
-                value = uiState.totalFamilies,
-                icon = Icons.Rounded.Groups,
-                tint = Color(0xFFF59E0B) // Amber
-            )
-            UserStatCard(
-                title = "Aktif SOS Durumu",
-                value = uiState.activeSosCount,
-                icon = Icons.Rounded.Warning,
-                tint = KalkanRed
-            )
         }
     }
 }
 
 @Composable
-private fun AdminUsersTopBar(onBackClick: () -> Unit) {
+private fun AdminUsersTopBar(
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 16.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(
@@ -142,46 +148,73 @@ private fun AdminUsersTopBar(onBackClick: () -> Unit) {
 }
 
 @Composable
-private fun UserStatCard(
-    title: String,
-    value: String,
-    icon: ImageVector,
-    tint: Color
+private fun CompactUserStatCard(
+    stat: UserStat,
+    modifier: Modifier = Modifier,
 ) {
-    KalkanCard(modifier = Modifier.fillMaxWidth()) {
+    KalkanCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp, max = 88.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+    ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(tint.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
+                    .size(36.dp)
+                    .background(stat.tint.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = icon,
+                    imageVector = stat.icon,
                     contentDescription = null,
-                    tint = tint,
-                    modifier = Modifier.size(24.dp)
+                    tint = stat.tint,
+                    modifier = Modifier.size(18.dp),
                 )
             }
-            Spacer(modifier = Modifier.size(16.dp))
-            Column {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = KalkanTextMuted
+                    text = stat.title,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = KalkanTextMuted,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = value,
-                    style = MaterialTheme.typography.headlineMedium,
+                    text = stat.value,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
     }
+}
+
+private data class UserStat(
+    val title: String,
+    val value: String,
+    val icon: ImageVector,
+    val tint: Color,
+)
+
+private fun AdminUsersState.toUserStats(): List<UserStat> {
+    val items = listOf(
+        UserStat("Toplam Kullanıcı", totalUsers, Icons.Rounded.Person, KalkanBlue),
+        UserStat("Misafir Kullanıcılar", guestUsers, Icons.Rounded.Person, Color(0xFF7C3AED)),
+        UserStat("Aktif Cihazlar", activeDevices, Icons.Rounded.PhoneAndroid, Color(0xFF0EA5E9)),
+        UserStat("Deprem Bildirimi Açık", earthquakeEnabledUsers, Icons.Rounded.NotificationsActive, Color(0xFF10B981)),
+        UserStat("Toplam Aile Grubu", totalFamilies, Icons.Rounded.Groups, Color(0xFFF59E0B)),
+        UserStat("Aktif SOS Durumu", activeSosCount, Icons.Rounded.Warning, KalkanRed),
+    )
+    return items
 }

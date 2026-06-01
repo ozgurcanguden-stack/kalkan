@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -228,22 +230,26 @@ fun FamilyScreen(
                     }
                 }
                 familyGroupState.familyGroup != null -> {
-                    FamilyMembersSection(
+                    FamilyGroupInfoCard(
                         familyGroup = familyGroupState.familyGroup,
-                        members = familyGroupState.members,
                         currentUserUid = currentUserUid,
                         isActionLoading = familyGroupState.isActionLoading,
-                        onLeaveGroup = { groupId ->
-                            familyGroupToLeaveId = groupId
-                        },
-                        onDeleteGroup = { groupId ->
-                            familyGroupToDeleteId = groupId
-                        },
+                        onLeaveGroup = { groupId -> familyGroupToLeaveId = groupId },
+                        onDeleteGroup = { groupId -> familyGroupToDeleteId = groupId },
+                    )
+                    FamilyMapPreview(
+                        members = familyGroupState.members,
+                        hasGroup = true,
+                        isLoading = familyGroupState.isLoading,
+                        onOpenFamilyMap = onOpenFamilyMap,
+                    )
+                    FamilyMembersSection(
+                        members = familyGroupState.members,
                         onOpenLocation = { latitude, longitude ->
                             if (!MapIntentHelper.openLocation(context, latitude, longitude)) {
                                 onShowActionMessage("Konum açılamadı.")
                             }
-                        }
+                        },
                     )
                 }
                 else -> {
@@ -273,12 +279,6 @@ fun FamilyScreen(
                 onWhatsAppContact = { handleWhatsApp(it) },
             )
 
-            FamilyMapPreview(
-                members = familyGroupState.members,
-                hasGroup = familyGroupState.hasGroup,
-                isLoading = familyGroupState.isLoading,
-                onOpenFamilyMap = onOpenFamilyMap,
-            )
             Spacer(modifier = Modifier.height(12.dp))
         }
 
@@ -524,58 +524,67 @@ private fun SafetyCheckCard(
     onClick: () -> Unit,
     isLoading: Boolean,
 ) {
+    val subtitleColor = Color(0xFFBEC6E0)
+
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = PrimaryContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier.clickable(enabled = !isLoading, onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
+                .heightIn(min = 72.dp, max = 88.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = "Aile Durum Kontrolü",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleSmall,
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "Yakınlarınızdan güvenlik durumlarını paylaşmalarını isteyin.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFBEC6E0),
-                )
-                Text(
-                    text = "Kontrol Başlat",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(KalkanBlue.copy(alpha = 0.35f))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    text = "Yakınlarınızdan durum paylaşmalarını isteyin.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = subtitleColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Box(
-                modifier = Modifier.size(48.dp).background(KalkanBlue, CircleShape),
-                contentAlignment = Alignment.Center,
+            Button(
+                onClick = onClick,
+                enabled = !isLoading,
+                modifier = Modifier.height(36.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = KalkanBlue,
+                    contentColor = Color.White,
+                ),
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         color = Color.White,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Icon(Icons.Rounded.HealthAndSafety, contentDescription = null, tint = Color.White)
+                    Text(
+                        text = "Başlat",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
             }
         }
@@ -766,68 +775,88 @@ private fun CreateOrJoinGroupSection(
 }
 
 @Composable
-private fun FamilyMembersSection(
-    familyGroup: FamilyGroup?,
-    members: List<FamilyMember>,
+private fun FamilyGroupInfoCard(
+    familyGroup: FamilyGroup,
     currentUserUid: String,
     isActionLoading: Boolean,
     onLeaveGroup: (String) -> Unit,
     onDeleteGroup: (String) -> Unit,
-    onOpenLocation: (Double, Double) -> Unit,
 ) {
-    val isOwner = familyGroup?.ownerUid == currentUserUid
+    val isOwner = familyGroup.ownerUid == currentUserUid
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, KalkanBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Text(
-                    text = familyGroup?.name ?: "Aile Üyeleri",
+                    text = familyGroup.name,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
-                if (familyGroup != null) {
+                Text(
+                    text = "Davet Kodu: ${familyGroup.inviteCode}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = KalkanBlue,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            TextButton(
+                onClick = {
+                    if (isOwner) {
+                        onDeleteGroup(familyGroup.id)
+                    } else {
+                        onLeaveGroup(familyGroup.id)
+                    }
+                },
+                enabled = !isActionLoading,
+                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFC5221F)),
+            ) {
+                if (isActionLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color(0xFFC5221F),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
                     Text(
-                        text = "Davet Kodu: ${familyGroup.inviteCode}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = KalkanBlue,
-                        fontWeight = FontWeight.SemiBold
+                        text = if (isOwner) "Grubu Sil" else "Gruptan Ayrıl",
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
-            if (familyGroup != null) {
-                TextButton(
-                    onClick = {
-                        if (isOwner) {
-                            onDeleteGroup(familyGroup.id)
-                        } else {
-                            onLeaveGroup(familyGroup.id)
-                        }
-                    },
-                    enabled = !isActionLoading,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFC5221F))
-                ) {
-                    if (isActionLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Color(0xFFC5221F),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(
-                            text = if (isOwner) "Grubu Sil" else "Gruptan Ayrıl",
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
         }
+    }
+}
+
+@Composable
+private fun FamilyMembersSection(
+    members: List<FamilyMember>,
+    onOpenLocation: (Double, Double) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "Aile Üyeleri",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+        )
 
         if (members.isEmpty()) {
             Text(

@@ -16,17 +16,28 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +49,7 @@ import com.zgrcan.kalkan.core.design.components.KalkanCard
 import com.zgrcan.kalkan.core.design.theme.KalkanBlue
 import com.zgrcan.kalkan.core.design.theme.KalkanRed
 import com.zgrcan.kalkan.core.design.theme.KalkanTextMuted
+import com.zgrcan.kalkan.ui.components.AppTopNotificationCenter
 import com.zgrcan.kalkan.viewmodel.AdminNotificationItem
 import com.zgrcan.kalkan.viewmodel.AdminNotificationsViewModel
 import java.text.SimpleDateFormat
@@ -46,40 +58,153 @@ import java.util.Locale
 
 @Composable
 fun AdminNotificationCenterScreen(
+    hasAdminAccess: Boolean,
     onBackClick: () -> Unit,
-    viewModel: AdminNotificationsViewModel = hiltViewModel()
+    viewModel: AdminNotificationsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isSuperAdmin by viewModel.hasAdminAccess.collectAsState()
+    val canManageDeletes = hasAdminAccess || isSuperAdmin
+    val snackbarHostState = remember { SnackbarHostState() }
+    var pendingDelete by remember { mutableStateOf<PendingNotificationDelete?>(null) }
 
-    Column(
+    LaunchedEffect(uiState.snackbarMessage) {
+        val message = uiState.snackbarMessage ?: return@LaunchedEffect
+        if (uiState.isSnackbarError) {
+            snackbarHostState.showSnackbar(message)
+        } else {
+            AppTopNotificationCenter.showSuccess(message)
+        }
+        viewModel.clearSnackbarMessage()
+    }
+
+    if (!canManageDeletes) {
+        UnauthorizedAdminContent(onBackClick = onBackClick)
+        return
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .background(MaterialTheme.colorScheme.background),
     ) {
-        AdminNotificationsTopBar(onBackClick = onBackClick)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            AdminNotificationsTopBar(onBackClick = onBackClick)
 
-        if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = KalkanBlue)
-            }
-        } else if (uiState.items.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Henüz bildirim kaydı yok", color = KalkanTextMuted, style = MaterialTheme.typography.bodyLarge)
-            }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(uiState.items) { item ->
-                    NotificationItemCard(item)
+            if (uiState.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = KalkanBlue)
+                }
+            } else if (uiState.items.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "Henüz bildirim kaydı yok",
+                        color = KalkanTextMuted,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(uiState.items) { item ->
+                        val canDelete = canManageDeletes && item.type in DELETABLE_NOTIFICATION_TYPES
+                        NotificationItemCard(
+                            item = item,
+                            canDelete = canDelete,
+                            isDeleting = uiState.isDeletingItem,
+                            onDeleteClick = {
+                                pendingDelete = when (item.type) {
+                                    "Duyuru" -> PendingNotificationDelete.Announcement(item.id)
+                                    "Acil Uyarı" -> PendingNotificationDelete.EmergencyAlert(item.id)
+                                    else -> null
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+        )
+    }
+
+    pendingDelete?.let { deleteTarget ->
+        val dialogContent = when (deleteTarget) {
+            is PendingNotificationDelete.Announcement -> DeleteDialogContent(
+                title = "Duyuru silinsin mi?",
+                message = "Bu duyuru uygulamadan kaldırılacak.",
+            )
+            is PendingNotificationDelete.EmergencyAlert -> DeleteDialogContent(
+                title = "Acil uyarı silinsin mi?",
+                message = "Bu acil uyarı uygulamadan kaldırılacaktır.\n\nBu işlem geri alınamaz.",
+            )
+        }
+
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = {
+                Text(
+                    text = dialogContent.title,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    text = dialogContent.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        when (deleteTarget) {
+                            is PendingNotificationDelete.Announcement ->
+                                viewModel.deleteAnnouncement(deleteTarget.id, canDelete = canManageDeletes)
+                            is PendingNotificationDelete.EmergencyAlert ->
+                                viewModel.deleteEmergencyAlert(deleteTarget.id, canDelete = canManageDeletes)
+                        }
+                        pendingDelete = null
+                    },
+                    enabled = !uiState.isDeletingItem,
+                    colors = ButtonDefaults.buttonColors(containerColor = KalkanRed),
+                ) {
+                    Text("Sil")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text("İptal")
+                }
+            },
+        )
     }
 }
+
+private val DELETABLE_NOTIFICATION_TYPES = setOf("Duyuru", "Acil Uyarı")
+
+private sealed interface PendingNotificationDelete {
+    val id: String
+
+    data class Announcement(override val id: String) : PendingNotificationDelete
+    data class EmergencyAlert(override val id: String) : PendingNotificationDelete
+}
+
+private data class DeleteDialogContent(
+    val title: String,
+    val message: String,
+)
 
 @Composable
 private fun AdminNotificationsTopBar(onBackClick: () -> Unit) {
@@ -119,7 +244,12 @@ private fun AdminNotificationsTopBar(onBackClick: () -> Unit) {
 }
 
 @Composable
-private fun NotificationItemCard(item: AdminNotificationItem) {
+private fun NotificationItemCard(
+    item: AdminNotificationItem,
+    canDelete: Boolean,
+    isDeleting: Boolean,
+    onDeleteClick: () -> Unit,
+) {
     val icon = when (item.type) {
         "Duyuru" -> Icons.Rounded.Campaign
         "Acil Uyarı" -> Icons.Rounded.Warning
@@ -161,7 +291,7 @@ private fun NotificationItemCard(item: AdminNotificationItem) {
                 )
             }
             Spacer(modifier = Modifier.size(12.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -194,6 +324,21 @@ private fun NotificationItemCard(item: AdminNotificationItem) {
                         color = KalkanTextMuted,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (canDelete) {
+                IconButton(
+                    onClick = onDeleteClick,
+                    enabled = !isDeleting,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = when (item.type) {
+                            "Acil Uyarı" -> "Acil uyarıyı sil"
+                            else -> "Duyuruyu sil"
+                        },
+                        tint = KalkanRed,
                     )
                 }
             }

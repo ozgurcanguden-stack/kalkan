@@ -33,7 +33,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.Campaign
-
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Memory
@@ -43,16 +43,22 @@ import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -77,6 +83,7 @@ import com.zgrcan.kalkan.core.design.theme.KalkanBorder
 import com.zgrcan.kalkan.core.design.theme.KalkanNavy
 import com.zgrcan.kalkan.core.design.theme.KalkanRed
 import com.zgrcan.kalkan.core.design.theme.KalkanTextMuted
+import com.zgrcan.kalkan.ui.components.AppTopNotificationCenter
 import com.zgrcan.kalkan.model.Announcement
 import com.zgrcan.kalkan.model.AnnouncementPriority
 import java.text.SimpleDateFormat
@@ -93,13 +100,31 @@ fun AdminDashboardScreen(
     hasAdminAccess: Boolean,
     recentAnnouncements: List<Announcement>,
     isLoadingAnnouncements: Boolean,
+    isDeletingAnnouncement: Boolean,
     announcementsError: String?,
+    snackbarMessage: String?,
+    isSnackbarError: Boolean,
     onBackClick: () -> Unit,
     onFeatureClick: (String) -> Unit,
     onRefreshAnnouncements: () -> Unit,
+    onDeleteAnnouncement: (String) -> Unit,
+    onDismissSnackbar: () -> Unit,
 ) {
+    var announcementToDeleteId by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
     LaunchedEffect(hasAdminAccess) {
         if (hasAdminAccess) onRefreshAnnouncements()
+    }
+
+    LaunchedEffect(snackbarMessage) {
+        val message = snackbarMessage ?: return@LaunchedEffect
+        if (isSnackbarError) {
+            snackbarHostState.showSnackbar(message)
+        } else {
+            AppTopNotificationCenter.showSuccess(message)
+        }
+        onDismissSnackbar()
     }
 
     val isDark = MaterialTheme.colorScheme.background == KalkanNavy ||
@@ -107,6 +132,7 @@ fun AdminDashboardScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             AdminTopBar(onBackClick = onBackClick, onRefresh = onRefreshAnnouncements)
         },
@@ -177,12 +203,50 @@ fun AdminDashboardScreen(
                         isLoading = isLoadingAnnouncements,
                         errorMessage = announcementsError,
                         isDark = isDark,
+                        canDeleteAnnouncements = hasAdminAccess,
+                        isDeletingAnnouncement = isDeletingAnnouncement,
+                        onDeleteAnnouncement = { announcementToDeleteId = it.id },
                     )
                 }
 
                 item { Spacer(modifier = Modifier.height(24.dp)) }
             }
         }
+    }
+
+    announcementToDeleteId?.let { announcementId ->
+        AlertDialog(
+            onDismissRequest = { announcementToDeleteId = null },
+            title = {
+                Text(
+                    text = "Duyuru silinsin mi?",
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    text = "Bu duyuru uygulamadan kaldırılacak.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteAnnouncement(announcementId)
+                        announcementToDeleteId = null
+                    },
+                    enabled = !isDeletingAnnouncement,
+                    colors = ButtonDefaults.buttonColors(containerColor = KalkanRed),
+                ) {
+                    Text("Sil")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { announcementToDeleteId = null }) {
+                    Text("İptal")
+                }
+            },
+        )
     }
 }
 
@@ -501,6 +565,9 @@ private fun AnnouncementsSection(
     isLoading: Boolean,
     errorMessage: String?,
     isDark: Boolean,
+    canDeleteAnnouncements: Boolean,
+    isDeletingAnnouncement: Boolean,
+    onDeleteAnnouncement: (Announcement) -> Unit,
 ) {
     when {
         isLoading -> {
@@ -535,7 +602,13 @@ private fun AnnouncementsSection(
                             ),
                         ),
                     ) {
-                        AnnouncementListItem(announcement = announcement, isDark = isDark)
+                        AnnouncementListItem(
+                            announcement = announcement,
+                            isDark = isDark,
+                            canDelete = canDeleteAnnouncements,
+                            isDeleting = isDeletingAnnouncement,
+                            onDeleteClick = { onDeleteAnnouncement(announcement) },
+                        )
                     }
                 }
             }
@@ -544,7 +617,13 @@ private fun AnnouncementsSection(
 }
 
 @Composable
-private fun AnnouncementListItem(announcement: Announcement, isDark: Boolean) {
+private fun AnnouncementListItem(
+    announcement: Announcement,
+    isDark: Boolean,
+    canDelete: Boolean,
+    isDeleting: Boolean,
+    onDeleteClick: () -> Unit,
+) {
     val cardBg = if (isDark) Color(0xFF1E293B) else Color.White
     val borderColor = if (isDark) Color(0xFF334155) else KalkanBorder.copy(alpha = 0.6f)
     val priorityColor = priorityColor(announcement.priority)
@@ -602,12 +681,26 @@ private fun AnnouncementListItem(announcement: Announcement, isDark: Boolean) {
             }
         }
 
-        Icon(
-            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-            contentDescription = null,
-            tint = KalkanTextMuted,
-            modifier = Modifier.size(20.dp),
-        )
+        if (canDelete) {
+            IconButton(
+                onClick = onDeleteClick,
+                enabled = !isDeleting,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Delete,
+                    contentDescription = "Duyuruyu sil",
+                    tint = KalkanRed,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        } else {
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = KalkanTextMuted,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 

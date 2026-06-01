@@ -195,24 +195,53 @@ async function sendAnnouncementToTokens(
 }
 
 async function collectFamilyTokens(familyGroupId: string, sourceUid: string): Promise<string[]> {
+  const { tokens } = await collectFamilyGroupPushTargets(familyGroupId, sourceUid);
+  return tokens;
+}
+
+/** Aile push: üye uid'lerini members + users.familyGroupId üzerinden toplar, fcmToken users/{uid}'den okunur. */
+async function collectFamilyGroupPushTargets(
+  familyGroupId: string,
+  excludeUid: string,
+): Promise<{ tokens: string[]; memberCount: number }> {
+  const memberUids = new Set<string>();
+
+  const membersSnapshot = await admin.firestore()
+    .collection("family_groups")
+    .doc(familyGroupId)
+    .collection("members")
+    .get();
+
+  membersSnapshot.forEach((doc) => {
+    if (doc.id !== excludeUid) {
+      memberUids.add(doc.id);
+    }
+  });
+
   const usersSnapshot = await admin.firestore()
     .collection("users")
     .where("familyGroupId", "==", familyGroupId)
     .get();
-  const tokens = new Set<string>();
 
   usersSnapshot.forEach((doc) => {
-    if (doc.id === sourceUid) {
-      return;
-    }
-
-    const rawToken = doc.data().fcmToken;
-    if (typeof rawToken === "string" && rawToken.trim()) {
-      tokens.add(rawToken.trim());
+    if (doc.id !== excludeUid) {
+      memberUids.add(doc.id);
     }
   });
 
-  return Array.from(tokens);
+  const tokens = new Set<string>();
+  for (const uid of memberUids) {
+    const userDoc = await admin.firestore().collection("users").doc(uid).get();
+    if (!userDoc.exists) {
+      continue;
+    }
+    const rawToken = userDoc.get("fcmToken");
+    if (typeof rawToken === "string" && rawToken.trim()) {
+      tokens.add(rawToken.trim());
+    }
+  }
+
+  return { tokens: Array.from(tokens), memberCount: memberUids.size };
 }
 
 async function sendSafetyAlertToTokens(
@@ -403,17 +432,30 @@ async function sendFamilyCheckRequestToTokens(
 }
 
 export const sendFamilyCheckRequestPush = onDocumentCreated(
-  "family_check_requests/{requestId}",
+  {
+    document: "family_check_requests/{requestId}",
+    region: "europe-west1",
+  },
   async (event) => {
     const requestId = event.params.requestId;
-    const snapshot = event.data;
+    logger.info("Family check request push function started", { requestId });
 
+    const snapshot = event.data;
     if (!snapshot) {
       logger.warn("Family check request snapshot missing", { requestId });
       return;
     }
 
     const data = snapshot.data() as FamilyCheckRequestData;
+    logger.info("Family check request loaded", {
+      requestId,
+      status: data.status ?? null,
+      familyGroupId: data.familyGroupId ?? data.groupId ?? null,
+      requestedByUid: data.requestedByUid ?? data.requesterUid ?? null,
+      requestedByName: data.requestedByName ?? data.requesterName ?? null,
+      createdAt: data.createdAt ?? null,
+    });
+
     const status = (data.status ?? "sent").trim();
     if (status !== "sent") {
       logger.info("Family check request skipped: status is not sent", { requestId, status });
@@ -425,13 +467,7 @@ export const sendFamilyCheckRequestPush = onDocumentCreated(
     const requestedByName = safeUserName(data.requestedByName ?? data.requesterName);
 
     if (!familyGroupId || !requestedByUid) {
-      logger.warn("Family check request skipped: missing group or requester", { requestId });
-      return;
-    }
-
-    const tokens = await collectFamilyTokens(familyGroupId, requestedByUid);
-    if (tokens.length === 0) {
-      logger.info("Family check request skipped: no eligible tokens", {
+      logger.warn("Family check request skipped: missing group or requester", {
         requestId,
         familyGroupId,
         requestedByUid,
@@ -439,9 +475,37 @@ export const sendFamilyCheckRequestPush = onDocumentCreated(
       return;
     }
 
+    const { tokens, memberCount } = await collectFamilyGroupPushTargets(
+      familyGroupId,
+      requestedByUid,
+    );
+
+    logger.info("Family check request targets resolved", {
+      requestId,
+      familyGroupId,
+      requestedByUid,
+      familyMembersCount: memberCount,
+      tokensCount: tokens.length,
+    });
+
+    if (tokens.length === 0) {
+      logger.info("Family check request skipped: no eligible FCM tokens", {
+        requestId,
+        familyGroupId,
+        requestedByUid,
+        familyMembersCount: memberCount,
+      });
+      return;
+    }
+
     const title = "Aile Durum Kontrolü";
     const body = `${requestedByName}, güvenlik durumunuzu paylaşmanızı istiyor.`;
-    const createdAt = nowIso();
+    const createdAt =
+      typeof data.createdAt === "number"
+        ? new Date(data.createdAt).toISOString()
+        : data.createdAt instanceof admin.firestore.Timestamp
+          ? data.createdAt.toDate().toISOString()
+          : nowIso();
 
     const { successCount, failureCount } = await sendFamilyCheckRequestToTokens(
       tokens,
@@ -458,7 +522,8 @@ export const sendFamilyCheckRequestPush = onDocumentCreated(
       requestId,
       familyGroupId,
       requestedByUid,
-      tokenCount: tokens.length,
+      familyMembersCount: memberCount,
+      tokensCount: tokens.length,
       successCount,
       failureCount,
     });

@@ -39,7 +39,7 @@ extensions.configure<ApplicationExtension> {
         applicationId = "com.zgrcan.kalkan"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
+        versionCode = 3
         versionName = "1.0.0"
 
         val mapsApiKey = resolveMapsApiKey()

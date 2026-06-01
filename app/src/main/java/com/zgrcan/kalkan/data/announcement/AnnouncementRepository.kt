@@ -17,4 +17,6 @@ interface AnnouncementRepository {
         isGuest: Boolean,
         isRegistered: Boolean,
     ): Result<Announcement>
+
+    suspend fun deleteAnnouncement(id: String): Result<Unit>
 }

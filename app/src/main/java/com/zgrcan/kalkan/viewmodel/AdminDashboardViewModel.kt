@@ -2,6 +2,8 @@ package com.zgrcan.kalkan.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zgrcan.kalkan.data.announcement.ANNOUNCEMENT_DELETE_FAILURE_MESSAGE
+import com.zgrcan.kalkan.data.announcement.ANNOUNCEMENT_DELETE_SUCCESS_MESSAGE
 import com.zgrcan.kalkan.data.announcement.ANNOUNCEMENT_LOAD_USER_MESSAGE
 import com.zgrcan.kalkan.data.announcement.AnnouncementRepository
 import com.zgrcan.kalkan.data.announcement.logAnnouncementError
@@ -44,10 +46,46 @@ class AdminDashboardViewModel @Inject constructor(
                 }
         }
     }
+
+    fun deleteAnnouncement(announcementId: String, canDelete: Boolean) {
+        if (!canDelete || announcementId.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeletingAnnouncement = true, snackbarMessage = null) }
+            announcementRepository.deleteAnnouncement(announcementId)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            isDeletingAnnouncement = false,
+                            snackbarMessage = ANNOUNCEMENT_DELETE_SUCCESS_MESSAGE,
+                            isSnackbarError = false,
+                        )
+                    }
+                    loadRecentAnnouncements()
+                }
+                .onFailure { error ->
+                    logAnnouncementError("deleteAnnouncement", error)
+                    _uiState.update {
+                        it.copy(
+                            isDeletingAnnouncement = false,
+                            snackbarMessage = ANNOUNCEMENT_DELETE_FAILURE_MESSAGE,
+                            isSnackbarError = true,
+                        )
+                    }
+                }
+        }
+    }
+
+    fun clearSnackbarMessage() {
+        _uiState.update { it.copy(snackbarMessage = null) }
+    }
 }
 
 data class AdminDashboardUiState(
     val recentAnnouncements: List<Announcement> = emptyList(),
     val isLoadingAnnouncements: Boolean = false,
     val announcementsError: String? = null,
+    val isDeletingAnnouncement: Boolean = false,
+    val snackbarMessage: String? = null,
+    val isSnackbarError: Boolean = false,
 )

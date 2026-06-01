@@ -47,17 +47,25 @@ class FirebaseSafetyStatusRepository @Inject constructor(
         val userCooldownUpdate = when (statusType) {
             SafetyStatusType.SOS -> mapOf(
                 "lastSosAt" to createdAt,
+                "lastStatusType" to statusType.value,
+                "lastStatusAt" to createdAt,
             )
             SafetyStatusType.NEED_HELP -> mapOf(
                 "lastHelpRequestAt" to createdAt,
+                "lastStatusType" to statusType.value,
+                "lastStatusAt" to createdAt,
             )
             SafetyStatusType.SHARE_LOCATION -> mapOf(
                 "lastLocationShareAt" to createdAt,
+                "lastStatusType" to statusType.value,
+                "lastStatusAt" to createdAt,
             )
             SafetyStatusType.SAFE -> mapOf(
                 "lastSosAt" to FieldValue.delete(),
                 "lastHelpRequestAt" to FieldValue.delete(),
                 "lastLocationShareAt" to FieldValue.delete(),
+                "lastStatusType" to statusType.value,
+                "lastStatusAt" to createdAt,
             )
         }
         firestore.collection("users").document(uid).update(userCooldownUpdate).await()
@@ -88,6 +96,19 @@ class FirebaseSafetyStatusRepository @Inject constructor(
 
     override suspend fun getLatestSafetyStatus(uid: String): Result<SafetyStatus?> = runCatching {
         require(uid.isNotBlank()) { "Kullanıcı kimliği boş olamaz." }
+
+        val userSnapshot = firestore.collection("users").document(uid).get().await()
+        val lastStatusType = SafetyStatusType.from(userSnapshot.getString("lastStatusType"))
+        if (lastStatusType != null) {
+            return@runCatching SafetyStatus(
+                uid = uid,
+                displayName = userSnapshot.getString("displayName").orEmpty(),
+                email = userSnapshot.getString("email"),
+                statusType = lastStatusType,
+                message = lastStatusType.defaultMessage,
+                createdAt = userSnapshot.getLong("lastStatusAt") ?: 0L,
+            )
+        }
 
         val snapshot = safetyStatusCollection
             .whereEqualTo("uid", uid)

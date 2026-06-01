@@ -50,6 +50,11 @@ class FirebaseAnnouncementRepository @Inject constructor(
             .sortedWith(announcementComparator)
     }
 
+    override suspend fun deleteAnnouncement(id: String): Result<Unit> = runCatching {
+        require(id.isNotBlank()) { "Duyuru kimliği boş olamaz." }
+        announcements.document(id).delete().await()
+    }
+
     override suspend fun getAnnouncementById(
         id: String,
         isGuest: Boolean,
