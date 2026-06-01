@@ -15,11 +15,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Person
@@ -54,9 +55,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.zgrcan.kalkan.core.design.theme.KalkanBlue
 import com.zgrcan.kalkan.core.design.theme.KalkanBorder
@@ -74,6 +80,7 @@ fun EarthquakesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
+    val visibleCount by viewModel.visibleCount.collectAsState()
     val isRefreshing = when (val state = uiState) {
         is EarthquakeUiState.Success -> state.isRefreshing
         is EarthquakeUiState.Error -> state.isRefreshing
@@ -93,26 +100,43 @@ fun EarthquakesScreen(
             .background(MaterialTheme.colorScheme.background)
             .pullRefresh(pullRefreshState),
     ) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            EarthquakesTopBar(onRefreshClick = viewModel::refresh)
-            EarthquakeLastUpdatedLabel(lastUpdatedAt = uiState.lastUpdatedAt)
-            SearchAndFilter()
-            EarthquakeFilterChips(
-                selectedFilter = selectedFilter,
-                onFilterClick = viewModel::selectFilter,
-            )
-            EarthquakeContent(
+            item {
+                EarthquakesTopBar(onRefreshClick = viewModel::refresh)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+            item {
+                EarthquakeLastUpdatedLabel(lastUpdatedAt = uiState.lastUpdatedAt)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+            item {
+                SearchAndFilter()
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+            item {
+                EarthquakeFilterChips(
+                    selectedFilter = selectedFilter,
+                    onFilterClick = viewModel::selectFilter,
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+            earthquakeListItems(
                 uiState = uiState,
+                visibleCount = visibleCount,
                 onRetry = viewModel::refresh,
                 onEarthquakeClick = onEarthquakeClick,
+                onLoadMore = viewModel::loadMore,
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            item {
+                AfadDataSourceFooter()
+            }
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
         }
         PullRefreshIndicator(
             refreshing = isRefreshing,
@@ -203,24 +227,95 @@ private fun SearchField(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-private fun EarthquakeContent(
+private fun LazyListScope.earthquakeListItems(
     uiState: EarthquakeUiState,
+    visibleCount: Int,
     onRetry: () -> Unit,
     onEarthquakeClick: (String) -> Unit,
+    onLoadMore: () -> Unit,
 ) {
     when (uiState) {
-        EarthquakeUiState.Loading -> LoadingState()
-        is EarthquakeUiState.Empty -> EmptyState(onRetry = onRetry)
-        is EarthquakeUiState.Success -> EarthquakeList(
-            earthquakes = uiState.earthquakes,
-            onEarthquakeClick = onEarthquakeClick,
+        EarthquakeUiState.Loading -> {
+            item(key = "loading") {
+                LoadingState()
+            }
+        }
+        is EarthquakeUiState.Empty -> {
+            item(key = "empty") {
+                EmptyState(onRetry = onRetry)
+            }
+        }
+        is EarthquakeUiState.Success -> {
+            paginatedEarthquakeItems(
+                earthquakes = uiState.earthquakes,
+                visibleCount = visibleCount,
+                onEarthquakeClick = onEarthquakeClick,
+                onLoadMore = onLoadMore,
+                listKeyPrefix = "success",
+            )
+        }
+        is EarthquakeUiState.Error -> {
+            item(key = "error") {
+                StatusCard(
+                    title = "Veriler alinamadi",
+                    message = uiState.message,
+                    onRetry = onRetry,
+                    isError = true,
+                )
+            }
+            if (uiState.cachedEarthquakes.isNotEmpty()) {
+                item(key = "cached_header") {
+                    Text(
+                        text = "Son yuklenen veriler",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                paginatedEarthquakeItems(
+                    earthquakes = uiState.cachedEarthquakes,
+                    visibleCount = visibleCount,
+                    onEarthquakeClick = onEarthquakeClick,
+                    onLoadMore = onLoadMore,
+                    listKeyPrefix = "cached",
+                )
+            }
+        }
+    }
+}
+
+private fun LazyListScope.paginatedEarthquakeItems(
+    earthquakes: List<Earthquake>,
+    visibleCount: Int,
+    onEarthquakeClick: (String) -> Unit,
+    onLoadMore: () -> Unit,
+    listKeyPrefix: String,
+) {
+    val visibleEarthquakes = earthquakes.take(visibleCount)
+    val hasMore = earthquakes.size > visibleCount
+
+    items(
+        items = visibleEarthquakes,
+        key = { earthquake -> "$listKeyPrefix-${earthquake.id}" },
+    ) { earthquake ->
+        EarthquakeCard(
+            earthquake = earthquake,
+            onClick = {
+                if (earthquake.id.isNotBlank()) {
+                    onEarthquakeClick(earthquake.id)
+                }
+            },
+            modifier = Modifier.padding(bottom = 16.dp),
         )
-        is EarthquakeUiState.Error -> ErrorState(
-            uiState = uiState,
-            onRetry = onRetry,
-            onEarthquakeClick = onEarthquakeClick,
-        )
+    }
+
+    if (hasMore) {
+        item(key = "$listKeyPrefix-load_more") {
+            LoadMoreButton(
+                onClick = onLoadMore,
+                modifier = Modifier.padding(bottom = 16.dp),
+            )
+        }
     }
 }
 
@@ -246,30 +341,66 @@ private fun EmptyState(onRetry: () -> Unit) {
 }
 
 @Composable
-private fun ErrorState(
-    uiState: EarthquakeUiState.Error,
-    onRetry: () -> Unit,
-    onEarthquakeClick: (String) -> Unit,
+private fun LoadMoreButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        StatusCard(
-            title = "Veriler alinamadi",
-            message = uiState.message,
-            onRetry = onRetry,
-            isError = true,
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.55f)),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = KalkanBlue,
+        ),
+        contentPadding = PaddingValues(vertical = 14.dp),
+    ) {
+        Text(
+            text = "Daha Fazla Göster",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
         )
-        if (uiState.cachedEarthquakes.isNotEmpty()) {
-            Text(
-                text = "Son yuklenen veriler",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-            )
-            EarthquakeList(
-                earthquakes = uiState.cachedEarthquakes,
-                onEarthquakeClick = onEarthquakeClick,
-            )
-        }
+    }
+}
+
+@Composable
+private fun AfadDataSourceFooter() {
+    val context = LocalContext.current
+    val mutedStyle = MaterialTheme.typography.bodySmall.copy(
+        color = KalkanTextMuted,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "Veri Kaynağı: AFAD",
+            style = mutedStyle,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = "https://deprem.afad.gov.tr",
+            style = mutedStyle.copy(textDecoration = TextDecoration.Underline),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.clickable {
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://deprem.afad.gov.tr"),
+                )
+                try {
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Tarayıcı açılamadı.", Toast.LENGTH_SHORT).show()
+                }
+            },
+        )
     }
 }
 
@@ -308,35 +439,17 @@ private fun StatusCard(
 }
 
 @Composable
-private fun EarthquakeList(
-    earthquakes: List<Earthquake>,
-    onEarthquakeClick: (String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        earthquakes.forEach { earthquake ->
-            EarthquakeCard(
-                earthquake = earthquake,
-                onClick = {
-                    if (earthquake.id.isNotBlank()) {
-                        onEarthquakeClick(earthquake.id)
-                    }
-                },
-            )
-        }
-    }
-}
-
-@Composable
 private fun EarthquakeCard(
     earthquake: Earthquake,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val badgeStyle = earthquake.badgeStyle()
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
     ) {

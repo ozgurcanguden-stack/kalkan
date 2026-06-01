@@ -43,6 +43,9 @@ import com.zgrcan.kalkan.viewmodel.SettingsUiState
 import com.zgrcan.kalkan.util.AppVersionUtils
 import com.zgrcan.kalkan.ui.components.AppTopNotificationCenter
 import com.zgrcan.kalkan.ui.components.RemoteProfileImage
+import java.util.Locale
+
+private val TurkishLocale = Locale.forLanguageTag("tr-TR")
 
 private val StitchSecondary = Color(0xFF0051D5)
 private val StitchPrimaryContainer = Color(0xFF131B2E)
@@ -419,6 +422,54 @@ fun ProfileScreen(
                                 }
                             }
 
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = cardBg),
+                                border = BorderStroke(1.dp, borderColor.copy(alpha = 0.5f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Text(
+                                        text = "Veri Kaynağı",
+                                        color = KalkanTextMuted,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "AFAD Deprem Dairesi Başkanlığı",
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text(
+                                        text = "https://deprem.afad.gov.tr",
+                                        color = Color(0xFF0F766E),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        modifier = Modifier.clickable {
+                                            val intent = android.content.Intent(
+                                                android.content.Intent.ACTION_VIEW,
+                                                android.net.Uri.parse("https://deprem.afad.gov.tr")
+                                            )
+                                            try {
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Tarayıcı açılamadı.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    )
+                                    Text(
+                                        text = "Kalkan resmi bir devlet uygulaması değildir.\nDeprem verileri AFAD tarafından sunulan kamuya açık kaynaklardan alınmaktadır.",
+                                        color = KalkanTextMuted,
+                                        fontSize = 14.sp,
+                                        lineHeight = 20.sp
+                                    )
+                                }
+                            }
+
                             Button(
                                 onClick = onTestNotificationClick,
                                 modifier = Modifier.fillMaxWidth(),
@@ -436,6 +487,11 @@ fun ProfileScreen(
     if (showBackupScheduleDialog) {
         AlertDialog(
             onDismissRequest = { showBackupScheduleDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
+            iconContentColor = MaterialTheme.colorScheme.primary,
+            tonalElevation = 0.dp,
             title = {
                 Text(
                     text = "Otomatik yedeklemeler",
@@ -462,7 +518,7 @@ fun ProfileScreen(
                                     onSetBackupFrequency(freq)
                                     showBackupScheduleDialog = false
                                 },
-                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0D9488))
+                                colors = kalkanRadioButtonColors(),
                             )
                             Text(
                                 text = freq.dialogLabel,
@@ -476,7 +532,7 @@ fun ProfileScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showBackupScheduleDialog = false }) {
-                    Text("İptal", color = Color(0xFF0D9488), fontWeight = FontWeight.SemiBold)
+                    Text("İptal", color = KalkanBlue, fontWeight = FontWeight.SemiBold)
                 }
             }
         )
@@ -485,6 +541,11 @@ fun ProfileScreen(
     if (showDeleteAccountDialog1) {
         AlertDialog(
             onDismissRequest = { showDeleteAccountDialog1 = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
+            iconContentColor = MaterialTheme.colorScheme.primary,
+            tonalElevation = 0.dp,
             icon = { Icon(Icons.Rounded.Warning, contentDescription = null, tint = KalkanRed) },
             title = { Text("Hesabı Tamamen Sil", fontWeight = FontWeight.Bold) },
             text = {
@@ -510,6 +571,11 @@ fun ProfileScreen(
     if (showDeleteAccountDialog2) {
         AlertDialog(
             onDismissRequest = { showDeleteAccountDialog2 = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
+            iconContentColor = MaterialTheme.colorScheme.primary,
+            tonalElevation = 0.dp,
             icon = { Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = KalkanRed) },
             title = { Text("Üyeliğinizi Sonlandırın", fontWeight = FontWeight.Bold) },
             text = {
@@ -540,6 +606,11 @@ fun ProfileScreen(
                     showEarthquakeNotificationsDialog = false 
                 }
             },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
+            iconContentColor = MaterialTheme.colorScheme.primary,
+            tonalElevation = 0.dp,
             title = {
                 Text(
                     text = "Deprem Bildirim Tercihi",
@@ -599,13 +670,13 @@ fun ProfileScreen(
                                     showEarthquakeNotificationsDialog = false
                                 },
                                 enabled = !uiState.isNotificationSettingsLoading,
-                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0D9488))
+                                colors = kalkanRadioButtonColors(),
                             )
                             Text(
                                 text = option,
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.padding(start = 8.dp),
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }
@@ -632,12 +703,18 @@ fun ProfileScreen(
                     onClick = { showEarthquakeNotificationsDialog = false },
                     enabled = !uiState.isNotificationSettingsLoading
                 ) {
-                    Text("İptal", color = Color(0xFF0D9488), fontWeight = FontWeight.SemiBold)
+                    Text("İptal", color = KalkanBlue, fontWeight = FontWeight.SemiBold)
                 }
             }
         )
     }
 }
+
+@Composable
+private fun kalkanRadioButtonColors() = RadioButtonDefaults.colors(
+    selectedColor = KalkanBlue,
+    unselectedColor = KalkanTextMuted,
+)
 
 @Composable
 private fun ProfileStitchHeaderCard(
@@ -756,7 +833,7 @@ private fun StitchSettingsSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = title.uppercase(),
+            text = title.uppercase(TurkishLocale),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
             color = StitchOutline,
@@ -1087,9 +1164,9 @@ private fun AccountDetailsCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Otomatik yedekleme",
-                            color = Color(0xFF0D9488),
+                            color = KalkanBlue,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
                         )
                         Text(
                             text = if (user?.isGuest == true) "Misafir modunda kapalı" else uiState.backupFrequency.label,

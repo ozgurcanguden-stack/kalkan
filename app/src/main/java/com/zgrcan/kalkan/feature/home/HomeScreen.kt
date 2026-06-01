@@ -199,12 +199,15 @@ fun HomeScreen(
                 onAnnouncementClick = onAnnouncementClick,
                 onRetry = onRetryAnnouncements,
             )
+            EmergencyContactsCard(
+                contacts = contacts,
+                onAddContactClick = onAddContactClick,
+            )
             RecentEarthquakesCard(
                 state = earthquakesState,
                 onSeeAllClick = onSeeAllEarthquakesClick,
                 onEarthquakeClick = onEarthquakeClick,
             )
-            EmergencyContactsCard(contacts = contacts, onAddContactClick = onAddContactClick)
             Spacer(modifier = Modifier.height(12.dp))
         }
 
@@ -258,12 +261,16 @@ private fun TopGreetingBar(
                 modifier = Modifier.size(44.dp),
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(KalkanBlue.copy(alpha = 0.08f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = "\uD83C\uDDF9\uD83C\uDDF7",
-                        fontSize = 28.sp,
+                    Icon(
+                        imageVector = Icons.Rounded.Person,
+                        contentDescription = null,
+                        tint = KalkanBlue,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
@@ -691,12 +698,10 @@ private fun EarthquakeItem(
 @Composable
 private fun EmergencyContactsCard(
     contacts: List<com.zgrcan.kalkan.model.EmergencyContact>,
-    onAddContactClick: () -> Unit
+    onAddContactClick: () -> Unit,
 ) {
     if (contacts.isEmpty()) {
-        HomeSectionCard(
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        HomeSectionCard(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -733,83 +738,96 @@ private fun EmergencyContactsCard(
                 Text(text = "Kişi Ekle", style = MaterialTheme.typography.labelLarge)
             }
         }
-    } else {
-        HomeSectionCard {
-            Text(
-                text = "Acil Durum Kişileri",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                contacts.take(3).forEach { contact ->
+        return
+    }
+
+    HomeSectionCard {
+        Text(
+            text = "Acil Durum Kişileri",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            contacts.take(3).forEach { contact ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.weight(1f),
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(KalkanBlue.copy(alpha = 0.08f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Rounded.Person, contentDescription = null, tint = KalkanBlue, modifier = Modifier.size(18.dp))
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = contact.name,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "${contact.relation} • ${contact.phone}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = KalkanTextMuted,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                        
-                        val context = LocalContext.current
-                        IconButton(
-                            onClick = {
-                                if (!com.zgrcan.kalkan.util.EmergencyIntentHelper.openDialer(context, contact.phone)) {
-                                    Toast.makeText(context, "Arama başlatılamadı.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
+                        Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(KalkanBlue.copy(alpha = 0.1f), CircleShape)
+                                .background(KalkanBlue.copy(alpha = 0.08f), CircleShape),
+                            contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Phone,
-                                contentDescription = "Ara",
+                                Icons.Rounded.Person,
+                                contentDescription = null,
                                 tint = KalkanBlue,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = contact.name,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = "${contact.relation} • ${contact.phone}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = KalkanTextMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
+
+                    val context = LocalContext.current
+                    IconButton(
+                        onClick = {
+                            if (!com.zgrcan.kalkan.util.EmergencyIntentHelper.openDialer(context, contact.phone)) {
+                                Toast.makeText(context, "Arama başlatılamadı.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(KalkanBlue.copy(alpha = 0.1f), CircleShape),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Phone,
+                            contentDescription = "Ara",
+                            tint = KalkanBlue,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             }
-            TextButton(
-                onClick = onAddContactClick,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = "Rehberi Yönet",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = KalkanBlue,
-                )
-            }
+        }
+        if (contacts.size > 3) {
+            Text(
+                text = "+${contacts.size - 3} kişi daha",
+                style = MaterialTheme.typography.bodySmall,
+                color = KalkanTextMuted,
+            )
+        }
+        TextButton(
+            onClick = onAddContactClick,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = "Rehberi Yönet",
+                style = MaterialTheme.typography.labelLarge,
+                color = KalkanBlue,
+            )
         }
     }
 }

@@ -47,32 +47,63 @@ class FamilyGroupViewModel @Inject constructor(
         }
 
         val groupId = user.familyGroupId
-        _uiState.update { it.copy(isLoading = true, hasGroup = true, error = null) }
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                hasGroup = false,
+                familyGroup = null,
+                members = emptyList(),
+                error = null,
+            )
+        }
         viewModelScope.launch {
             familyRepository.syncCurrentMemberProfile(user, groupId)
         }
 
-        // Observe Group details
         observeGroupJob?.cancel()
         observeGroupJob = viewModelScope.launch {
             familyRepository.observeFamilyGroup(groupId)
                 .catch { err ->
-                    _uiState.update { it.copy(error = "Grup bilgisi yüklenemedi.") }
+                    _uiState.update {
+                        it.copy(
+                            error = err.message ?: "Grup bilgisi yüklenemedi.",
+                            isLoading = false,
+                            hasGroup = false,
+                            familyGroup = null,
+                            members = emptyList(),
+                        )
+                    }
                 }
                 .collect { group ->
-                    _uiState.update { it.copy(familyGroup = group, isLoading = false) }
+                    _uiState.update {
+                        it.copy(
+                            familyGroup = group,
+                            isLoading = false,
+                            hasGroup = group != null,
+                            members = if (group == null) emptyList() else it.members,
+                        )
+                    }
                 }
         }
 
-        // Observe Members details
         observeMembersJob?.cancel()
         observeMembersJob = viewModelScope.launch {
             familyRepository.observeFamilyMembers(groupId)
                 .catch { err ->
-                    _uiState.update { it.copy(error = "Üye listesi yüklenemedi.") }
+                    _uiState.update {
+                        it.copy(
+                            error = err.message ?: "Üye listesi yüklenemedi.",
+                            isLoading = false,
+                        )
+                    }
                 }
                 .collect { members ->
-                    _uiState.update { it.copy(members = members.sortedByEmergencyPriority()) }
+                    _uiState.update {
+                        it.copy(
+                            members = members.sortedByEmergencyPriority(),
+                            isLoading = false,
+                        )
+                    }
                 }
         }
     }

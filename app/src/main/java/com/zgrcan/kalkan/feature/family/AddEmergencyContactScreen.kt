@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -28,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Call
-import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material3.Button
@@ -98,50 +96,6 @@ fun AddEmergencyContactScreen(
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         AddContactTopBar(onBackClick = onBackClick)
-
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(96.dp)
-                        .background(inputBackground, CircleShape)
-                        .border(1.dp, inputBorder, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(42.dp),
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(30.dp)
-                        .background(KalkanBlue, CircleShape)
-                        .border(1.dp, pageBackground, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.CameraAlt,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(17.dp),
-                    )
-                }
-            }
-            Text(
-                text = "Fotoğraf Ekle",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
 
         EmergencyContactFormLabel(text = "Ad Soyad") {
             OutlinedTextField(
@@ -267,6 +221,8 @@ fun AddEmergencyContactScreen(
                 Text("Kaydet", fontWeight = FontWeight.Bold)
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 

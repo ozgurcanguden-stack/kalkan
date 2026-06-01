@@ -192,16 +192,6 @@ fun FamilyScreen(
         ) {
             FamilyTopBar()
             SafetyCheckCard()
-            EmergencyContactsSection(
-                state = contactsState,
-                onAddContactClick = onAddContactClick,
-                onDeleteContact = { contactId ->
-                    contactToDeleteId = contactId
-                },
-                onCallContact = { handleCall(it) },
-                onSmsContact = { handleSms(it) },
-                onWhatsAppContact = { handleWhatsApp(it) },
-            )
 
             when {
                 familyGroupState.isLoading -> {
@@ -214,7 +204,7 @@ fun FamilyScreen(
                         CircularProgressIndicator(color = KalkanBlue, modifier = Modifier.size(28.dp))
                     }
                 }
-                familyGroupState.hasGroup -> {
+                familyGroupState.familyGroup != null -> {
                     FamilyMembersSection(
                         familyGroup = familyGroupState.familyGroup,
                         members = familyGroupState.members,
@@ -239,10 +229,21 @@ fun FamilyScreen(
                         onJoinGroup = onJoinFamilyGroup,
                         isActionLoading = familyGroupState.isActionLoading,
                         actionError = familyGroupState.error,
-                        onClearError = onClearFamilyError
+                        onClearError = onClearFamilyError,
                     )
                 }
             }
+
+            EmergencyContactsSection(
+                state = contactsState,
+                onAddContactClick = onAddContactClick,
+                onDeleteContact = { contactId ->
+                    contactToDeleteId = contactId
+                },
+                onCallContact = { handleCall(it) },
+                onSmsContact = { handleSms(it) },
+                onWhatsAppContact = { handleWhatsApp(it) },
+            )
 
             FamilyMapPreview()
             Spacer(modifier = Modifier.height(12.dp))

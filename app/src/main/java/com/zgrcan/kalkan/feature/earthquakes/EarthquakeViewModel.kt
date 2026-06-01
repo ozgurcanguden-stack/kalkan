@@ -26,13 +26,24 @@ class EarthquakeViewModel @Inject constructor(
     private var latestEarthquakes: List<Earthquake> = emptyList()
     private var lastUpdatedAt: Long? = null
 
+    private val _visibleCount = MutableStateFlow(EARTHQUAKE_PAGE_SIZE)
+    val visibleCount: StateFlow<Int> = _visibleCount.asStateFlow()
+
     init {
         observeCache()
         observeLastUpdatedAt()
         refresh()
     }
 
+    fun loadMore() {
+        _visibleCount.update { current ->
+            val filteredSize = latestEarthquakes.applyCurrentFilter().size
+            (current + EARTHQUAKE_PAGE_SIZE).coerceAtMost(filteredSize)
+        }
+    }
+
     fun refresh() {
+        resetVisibleCount()
         viewModelScope.launch {
             if (latestEarthquakes.isEmpty()) {
                 _uiState.value = EarthquakeUiState.Loading
@@ -43,6 +54,7 @@ class EarthquakeViewModel @Inject constructor(
             repository.refreshFromAfad()
                 .onSuccess { earthquakes ->
                     latestEarthquakes = earthquakes
+                    resetVisibleCount()
                     publishFilteredState()
                 }
                 .onFailure { error ->
@@ -57,7 +69,12 @@ class EarthquakeViewModel @Inject constructor(
 
     fun selectFilter(filter: EarthquakeFilter) {
         _selectedFilter.value = filter
+        resetVisibleCount()
         publishFilteredState()
+    }
+
+    private fun resetVisibleCount() {
+        _visibleCount.value = EARTHQUAKE_PAGE_SIZE
     }
 
     fun findEarthquake(earthquakeId: String): Earthquake? =
@@ -117,6 +134,8 @@ private fun MutableStateFlow<EarthquakeUiState>.updateRefreshing(isRefreshing: B
         }
     }
 }
+
+const val EARTHQUAKE_PAGE_SIZE = 20
 
 enum class EarthquakeFilter(val label: String) {
     ALL("Tümü"),
