@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.South
@@ -39,7 +38,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -106,7 +104,7 @@ fun EarthquakesScreen(
                 .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
             item {
-                EarthquakesTopBar(onRefreshClick = viewModel::refresh)
+                EarthquakesTopBar()
                 Spacer(modifier = Modifier.height(24.dp))
             }
             item {
@@ -149,27 +147,16 @@ fun EarthquakesScreen(
 }
 
 @Composable
-private fun EarthquakesTopBar(onRefreshClick: () -> Unit) {
-    Row(
+private fun EarthquakesTopBar() {
+    Text(
+        text = "Son Depremler",
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = "Son Depremler",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-        )
-
-        Row {
-            IconButton(onClick = onRefreshClick) {
-                Icon(Icons.Rounded.Refresh, contentDescription = "Yenile", tint = MaterialTheme.colorScheme.primary)
-            }
-        }
-    }
+        style = MaterialTheme.typography.headlineSmall,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable

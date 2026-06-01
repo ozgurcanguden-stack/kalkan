@@ -110,6 +110,7 @@ import com.zgrcan.kalkan.ui.components.AppTopNotificationCenter
 import com.zgrcan.kalkan.util.EmergencyIntentHelper
 import com.zgrcan.kalkan.util.MapIntentHelper
 import com.zgrcan.kalkan.util.TimeAgoUtils
+import com.zgrcan.kalkan.util.GuestFeatureMessages
 import com.zgrcan.kalkan.util.WhatsAppOpenResult
 import com.zgrcan.kalkan.viewmodel.AddEmergencyContactFormState
 import com.zgrcan.kalkan.viewmodel.EmergencyContactsUiState
@@ -122,6 +123,7 @@ private val PrimaryContainer = Color(0xFF131B2E)
 fun FamilyScreen(
     contactsState: EmergencyContactsUiState,
     familyGroupState: FamilyGroupUiState,
+    isGuest: Boolean,
     currentUserUid: String,
     onAddContactClick: () -> Unit,
     onDeleteContact: (String) -> Unit,
@@ -224,12 +226,17 @@ fun FamilyScreen(
                     )
                 }
                 else -> {
+                    FamilyCreateJoinInfoCard()
+                    if (isGuest) {
+                        GuestSignInHintCard()
+                    }
                     CreateOrJoinGroupSection(
                         onCreateGroup = onCreateFamilyGroup,
                         onJoinGroup = onJoinFamilyGroup,
                         isActionLoading = familyGroupState.isActionLoading,
                         actionError = familyGroupState.error,
                         onClearError = onClearFamilyError,
+                        formsEnabled = !isGuest,
                     )
                 }
             }
@@ -472,12 +479,76 @@ private fun SafetyCheckCard() {
 }
 
 @Composable
+private fun FamilyCreateJoinInfoCard() {
+    val isDark = isSystemInDarkTheme()
+    val cardBg = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF3F8FC)
+    val borderColor = if (isDark) KalkanBorder.copy(alpha = 0.35f) else KalkanBlue.copy(alpha = 0.12f)
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = "Aile grubunuzla afet anında durumunuzu paylaşabilir, yakınlarınızın güvende olup olmadığını hızlıca görebilirsiniz.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = "Grup oluşturabilir veya size verilen davet koduyla mevcut bir gruba katılabilirsiniz.",
+                style = MaterialTheme.typography.bodySmall,
+                color = KalkanTextMuted,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GuestSignInHintCard() {
+    val isDark = isSystemInDarkTheme()
+    val cardBg = if (isDark) KalkanBlue.copy(alpha = 0.12f) else Color(0xFFE8F0F8)
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, KalkanBlue.copy(alpha = 0.2f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = GuestFeatureMessages.SIGN_IN_REQUIRED,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = GuestFeatureMessages.FAMILY_SIGN_IN_HINT,
+                style = MaterialTheme.typography.bodySmall,
+                color = KalkanTextMuted,
+            )
+        }
+    }
+}
+
+@Composable
 private fun CreateOrJoinGroupSection(
     onCreateGroup: (String) -> Unit,
     onJoinGroup: (String) -> Unit,
     isActionLoading: Boolean,
     actionError: String?,
     onClearError: () -> Unit,
+    formsEnabled: Boolean = true,
 ) {
     var groupName by remember { mutableStateOf("") }
     var inviteCode by remember { mutableStateOf("") }
@@ -518,6 +589,7 @@ private fun CreateOrJoinGroupSection(
                     value = groupName,
                     onValueChange = { groupName = it; onClearError() },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = formsEnabled,
                     label = { Text("Grup Adı") },
                     placeholder = { Text("Örn: Özgür Ailesi") },
                     singleLine = true,
@@ -526,7 +598,7 @@ private fun CreateOrJoinGroupSection(
                 Button(
                     onClick = { onCreateGroup(groupName) },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isActionLoading && groupName.isNotBlank(),
+                    enabled = formsEnabled && !isActionLoading && groupName.isNotBlank(),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = KalkanBlue)
                 ) {
@@ -560,6 +632,7 @@ private fun CreateOrJoinGroupSection(
                     value = inviteCode,
                     onValueChange = { inviteCode = it; onClearError() },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = formsEnabled,
                     label = { Text("Davet Kodu") },
                     placeholder = { Text("Örn: KAL482") },
                     singleLine = true,
@@ -568,7 +641,7 @@ private fun CreateOrJoinGroupSection(
                 Button(
                     onClick = { onJoinGroup(inviteCode) },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isActionLoading && inviteCode.isNotBlank(),
+                    enabled = formsEnabled && !isActionLoading && inviteCode.isNotBlank(),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = KalkanBlue)
                 ) {
@@ -955,4 +1028,4 @@ private fun Avatar(initial: String, photoUrl: String? = null, size: Int = 40) {
         }
     }
 }
-
+

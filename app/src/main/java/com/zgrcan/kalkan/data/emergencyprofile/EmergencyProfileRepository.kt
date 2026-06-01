@@ -8,4 +8,6 @@ interface EmergencyProfileRepository {
     suspend fun saveProfile(uid: String, profile: EmergencyProfile): Result<EmergencyProfile>
     suspend fun deleteProfile(uid: String): Result<Unit>
     fun getCachedProfile(uid: String): EmergencyProfile?
+
+    suspend fun fetchProfileOnce(uid: String): EmergencyProfile?
 }

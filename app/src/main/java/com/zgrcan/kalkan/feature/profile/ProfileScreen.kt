@@ -1,6 +1,7 @@
 package com.zgrcan.kalkan.feature.profile
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -41,6 +42,7 @@ import com.zgrcan.kalkan.core.design.theme.KalkanTextMuted
 import com.zgrcan.kalkan.model.AppUser
 import com.zgrcan.kalkan.viewmodel.SettingsUiState
 import com.zgrcan.kalkan.util.AppVersionUtils
+import com.zgrcan.kalkan.util.GuestFeatureMessages
 import com.zgrcan.kalkan.ui.components.AppTopNotificationCenter
 import com.zgrcan.kalkan.ui.components.RemoteProfileImage
 import java.util.Locale
@@ -93,6 +95,22 @@ fun ProfileScreen(
     var showBackupScheduleDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val hasOpenDialog = showEarthquakeNotificationsDialog ||
+        showDeleteAccountDialog1 ||
+        showDeleteAccountDialog2 ||
+        showBackupScheduleDialog
+    val isInSubScreen = activeSubScreen != ProfileSubScreen.MAIN
+
+    BackHandler(enabled = hasOpenDialog || isInSubScreen) {
+        when {
+            showDeleteAccountDialog2 -> showDeleteAccountDialog2 = false
+            showDeleteAccountDialog1 -> showDeleteAccountDialog1 = false
+            showBackupScheduleDialog -> showBackupScheduleDialog = false
+            showEarthquakeNotificationsDialog -> showEarthquakeNotificationsDialog = false
+            isInSubScreen -> activeSubScreen = ProfileSubScreen.MAIN
+        }
+    }
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
@@ -160,7 +178,15 @@ fun ProfileScreen(
                                 StitchListRow(
                                     icon = Icons.Rounded.MedicalServices,
                                     label = "Acil Durum Kartı",
-                                    onClick = onEmergencyProfileClick,
+                                    onClick = {
+                                        if (user?.isGuest == true) {
+                                            AppTopNotificationCenter.showSuccess(
+                                                GuestFeatureMessages.SIGN_IN_REQUIRED,
+                                            )
+                                        } else {
+                                            onEmergencyProfileClick()
+                                        }
+                                    },
                                     showDivider = true,
                                     isDark = isDark,
                                 )

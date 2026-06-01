@@ -36,6 +36,19 @@ class SafetyStatusViewModel @Inject constructor(
     private val submitMutex = Mutex()
     private var submitJob: Job? = null
 
+    fun loadLatestStatus(uid: String?) {
+        viewModelScope.launch {
+            if (uid.isNullOrBlank()) {
+                _uiState.update { it.copy(currentStatusType = null) }
+                return@launch
+            }
+            safetyStatusRepository.getLatestSafetyStatus(uid)
+                .onSuccess { status ->
+                    _uiState.update { it.copy(currentStatusType = status?.statusType) }
+                }
+        }
+    }
+
     fun submitSafetyStatus(statusType: SafetyStatusType, user: AppUser?) {
         submit(statusType, user, permissionGranted = null)
     }
@@ -73,7 +86,12 @@ class SafetyStatusViewModel @Inject constructor(
 
         submitJob = viewModelScope.launch {
             submitMutex.withLock {
-                _uiState.update { it.copy(isSubmitting = true) }
+                _uiState.update {
+                    it.copy(
+                        isSubmitting = true,
+                        currentStatusType = statusType,
+                    )
+                }
 
                 val (userLocation, locationResult) = resolveLocationIfNeeded(
                     statusType = statusType,
@@ -101,9 +119,11 @@ class SafetyStatusViewModel @Inject constructor(
                     }
                 }.onFailure { error ->
                     logSafetyStatusError("createSafetyStatus", error)
+                    val latest = safetyStatusRepository.getLatestSafetyStatus(user.uid).getOrNull()
                     _uiState.update {
                         it.copy(
                             isSubmitting = false,
+                            currentStatusType = latest?.statusType,
                             snackbarMessage = SAFETY_STATUS_SAVE_USER_MESSAGE,
                             isError = true,
                         )
@@ -157,6 +177,7 @@ class SafetyStatusViewModel @Inject constructor(
 }
 
 data class SafetyStatusUiState(
+    val currentStatusType: SafetyStatusType? = null,
     val isSubmitting: Boolean = false,
     val snackbarMessage: String? = null,
     val isError: Boolean = false,

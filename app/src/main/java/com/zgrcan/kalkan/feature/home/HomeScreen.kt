@@ -35,6 +35,8 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.HealthAndSafety
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Warning
@@ -65,6 +67,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -74,12 +77,14 @@ import com.zgrcan.kalkan.core.design.theme.KalkanBorder
 import com.zgrcan.kalkan.core.design.theme.KalkanGreen
 import com.zgrcan.kalkan.core.design.theme.KalkanRed
 import com.zgrcan.kalkan.core.design.theme.KalkanTextMuted
+import com.zgrcan.kalkan.core.design.theme.PlusJakartaSansFamily
 import com.zgrcan.kalkan.feature.earthquakes.EarthquakeLastUpdatedLabel
 import com.zgrcan.kalkan.feature.earthquakes.formatEarthquakeDate
 import com.zgrcan.kalkan.model.SafetyStatusType
 import com.zgrcan.kalkan.ui.components.AnnouncementCard
 import com.zgrcan.kalkan.ui.components.AppTopNotificationCenter
 import com.zgrcan.kalkan.ui.components.RemoteProfileImage
+import com.zgrcan.kalkan.util.EmergencyIntentHelper
 import com.zgrcan.kalkan.viewmodel.AnnouncementsUiState
 import com.zgrcan.kalkan.viewmodel.SafetyStatusUiState
 import androidx.compose.ui.text.style.TextOverflow
@@ -108,6 +113,7 @@ fun HomeScreen(
     onSubmitSafetyStatus: (SafetyStatusType) -> Unit,
     onSubmitSafetyStatusWithLocation: (SafetyStatusType, Boolean) -> Unit,
     onDismissSafetyMessage: () -> Unit,
+    onLoadSafetyStatus: (String?) -> Unit,
     currentUser: com.zgrcan.kalkan.model.AppUser?,
     onSettingsClick: () -> Unit,
     earthquakesState: com.zgrcan.kalkan.feature.earthquakes.EarthquakeUiState,
@@ -163,6 +169,10 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(currentUser?.uid) {
+        onLoadSafetyStatus(currentUser?.uid)
+    }
+
     LaunchedEffect(safetyStatusState.snackbarMessage) {
         val message = safetyStatusState.snackbarMessage ?: return@LaunchedEffect
         if (safetyStatusState.isError) {
@@ -186,13 +196,20 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             TopGreetingBar(user = currentUser, onSettingsClick = onSettingsClick)
-            StatusCard()
+            StatusCard(statusType = safetyStatusState.currentStatusType)
             EmergencyActionGrid(
                 isSubmitting = safetyStatusState.isSubmitting,
                 onSafeClick = { handleSafetyStatusClick(SafetyStatusType.SAFE) },
                 onNeedHelpClick = { handleSafetyStatusClick(SafetyStatusType.NEED_HELP) },
                 onShareLocationClick = { handleSafetyStatusClick(SafetyStatusType.SHARE_LOCATION) },
                 onSosClick = { handleSafetyStatusClick(SafetyStatusType.SOS) },
+            )
+            Emergency112CallBar(
+                onClick = {
+                    if (!EmergencyIntentHelper.openEmergency112Dialer(context)) {
+                        Toast.makeText(context, "Arama başlatılamadı.", Toast.LENGTH_SHORT).show()
+                    }
+                },
             )
             AnnouncementsSection(
                 state = announcementsState,
@@ -362,13 +379,124 @@ private fun AnnouncementsSection(
     }
 }
 
+private val Emergency112Red = Color(0xFFBA1A1A)
+
+private val emergency112TextStyle = TextStyle(
+    fontFamily = PlusJakartaSansFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 18.sp,
+    lineHeight = 24.sp,
+    letterSpacing = 0.5.sp,
+    color = Color.White,
+)
+
 @Composable
-private fun StatusCard() {
+private fun Emergency112CallBar(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Emergency112Red),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Phone,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(26.dp),
+            )
+            Spacer(modifier = Modifier.size(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "112",
+                    style = emergency112TextStyle,
+                )
+                Text(
+                    text = "ACİL ÇAĞRI",
+                    style = emergency112TextStyle,
+                )
+            }
+        }
+    }
+}
+
+private data class StatusCardPresentation(
+    val title: String,
+    val description: String,
+    val containerColor: Color,
+    val borderColor: Color,
+    val contentColor: Color,
+    val icon: ImageVector,
+    val iconTint: Color,
+)
+
+private fun statusCardPresentation(statusType: SafetyStatusType?): StatusCardPresentation =
+    when (statusType) {
+        SafetyStatusType.SAFE -> StatusCardPresentation(
+            title = "Güvendesiniz",
+            description = "Yakınınızda riskli bir olay bulunmuyor.",
+            containerColor = SuccessContainer,
+            borderColor = KalkanGreen.copy(alpha = 0.16f),
+            contentColor = OnSuccessContainer,
+            icon = Icons.Rounded.CheckCircle,
+            iconTint = KalkanGreen,
+        )
+        SafetyStatusType.NEED_HELP -> StatusCardPresentation(
+            title = "Yardım Talebi Aktif",
+            description = "Aile üyelerinize yardım bildirimi gönderildi.",
+            containerColor = Color(0xFFFFF7ED),
+            borderColor = Color(0xFFFDBA74).copy(alpha = 0.55f),
+            contentColor = Color(0xFF9A3412),
+            icon = Icons.Rounded.Warning,
+            iconTint = Color(0xFFEA580C),
+        )
+        SafetyStatusType.SOS -> StatusCardPresentation(
+            title = "SOS Aktif",
+            description = "Acil yardım çağrınız aile üyelerinize iletildi.",
+            containerColor = Color(0xFFFEE2E2),
+            borderColor = Color(0xFFB91C1C).copy(alpha = 0.35f),
+            contentColor = OnErrorContainer,
+            icon = Icons.Rounded.HealthAndSafety,
+            iconTint = Color(0xFFB91C1C),
+        )
+        SafetyStatusType.SHARE_LOCATION -> StatusCardPresentation(
+            title = "Konum Paylaşılıyor",
+            description = "Konum bilginiz aile üyelerinizle paylaşılıyor.",
+            containerColor = Color(0xFFE8F0FE),
+            borderColor = KalkanBlue.copy(alpha = 0.28f),
+            contentColor = Color(0xFF1A73E8),
+            icon = Icons.Rounded.LocationOn,
+            iconTint = KalkanBlue,
+        )
+        null -> StatusCardPresentation(
+            title = "Durum Belirtilmedi",
+            description = "Güvenlik durumunuzu paylaşın.",
+            containerColor = SurfaceVariant,
+            borderColor = KalkanBorder.copy(alpha = 0.45f),
+            contentColor = Color(0xFF475569),
+            icon = Icons.Rounded.HelpOutline,
+            iconTint = KalkanTextMuted,
+        )
+    }
+
+@Composable
+private fun StatusCard(statusType: SafetyStatusType?) {
+    val presentation = statusCardPresentation(statusType)
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SuccessContainer),
+        colors = CardDefaults.cardColors(containerColor = presentation.containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.dp, KalkanGreen.copy(alpha = 0.16f)),
+        border = BorderStroke(1.dp, presentation.borderColor),
     ) {
         Column(
             modifier = Modifier
@@ -381,25 +509,25 @@ private fun StatusCard() {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.CheckCircle,
+                    imageVector = presentation.icon,
                     contentDescription = null,
-                    tint = KalkanGreen,
+                    tint = presentation.iconTint,
                 )
                 Text(
                     text = "DURUM",
                     style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 0.1.sp),
-                    color = OnSuccessContainer.copy(alpha = 0.78f),
+                    color = presentation.contentColor.copy(alpha = 0.78f),
                 )
             }
             Text(
-                text = "Güvendesiniz",
+                text = presentation.title,
                 style = MaterialTheme.typography.headlineSmall,
-                color = OnSuccessContainer,
+                color = presentation.contentColor,
             )
             Text(
-                text = "Yakınınızda riskli bir olay bulunmuyor.",
+                text = presentation.description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = OnSuccessContainer.copy(alpha = 0.9f),
+                color = presentation.contentColor.copy(alpha = 0.9f),
             )
         }
     }
@@ -438,13 +566,8 @@ private fun EmergencyActionGrid(
                 enabled = !isSubmitting,
                 onClick = onShareLocationClick,
             )
-            EmergencyTile(
-                title = "SOS",
-                icon = Icons.Rounded.Warning,
-                containerColor = Color(0xFFDC2626),
+            SosEmergencyTile(
                 modifier = Modifier.weight(1f),
-                titleSize = 32,
-                isSos = true,
                 enabled = !isSubmitting,
                 onClick = onSosClick,
             )
@@ -452,21 +575,19 @@ private fun EmergencyActionGrid(
     }
 }
 
+private val SosTileRed = Color(0xFFDC2626)
+private val SosTileBorder = Color(0xFFFFE4E1)
+
 @Composable
-private fun EmergencyTile(
-    title: String,
-    icon: ImageVector,
-    containerColor: Color,
+private fun SosEmergencyTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    titleSize: Int = 24,
-    isSos: Boolean = false,
     enabled: Boolean = true,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "sosPulse")
     val scale = infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (isSos) 1.04f else 1f,
+        targetValue = 1.04f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1000),
             repeatMode = RepeatMode.Reverse,
@@ -479,10 +600,38 @@ private fun EmergencyTile(
         enabled = enabled,
         modifier = modifier
             .heightIn(min = 140.dp)
+            .border(width = 2.dp, color = SosTileBorder, shape = RoundedCornerShape(16.dp))
             .graphicsLayer {
                 scaleX = scale.value
                 scaleY = scale.value
             },
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = SosTileRed),
+        contentPadding = PaddingValues(16.dp),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp),
+    ) {
+        BlockySosText(
+            color = Color.White,
+            letterHeight = 50.dp,
+            letterSpacing = 8.dp,
+        )
+    }
+}
+
+@Composable
+private fun EmergencyTile(
+    title: String,
+    icon: ImageVector,
+    containerColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    titleSize: Int = 24,
+    enabled: Boolean = true,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.heightIn(min = 140.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(containerColor = containerColor),
         contentPadding = PaddingValues(16.dp),
@@ -495,7 +644,7 @@ private fun EmergencyTile(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(if (title == "SOS") 48.dp else 40.dp),
+                modifier = Modifier.size(40.dp),
             )
             Text(
                 text = title,

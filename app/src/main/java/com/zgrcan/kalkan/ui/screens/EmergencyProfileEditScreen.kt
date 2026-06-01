@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,9 +26,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -43,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zgrcan.kalkan.core.design.theme.KalkanBlue
 import com.zgrcan.kalkan.core.design.theme.KalkanBorder
 import com.zgrcan.kalkan.core.design.theme.KalkanTextMuted
@@ -94,12 +99,6 @@ fun EmergencyProfileEditScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         EmergencyProfileTopBar(title = "Kartı Düzenle", onBackClick = onBackClick)
-
-        Text(
-            text = EMERGENCY_PROFILE_PRIVACY_NOTICE,
-            style = MaterialTheme.typography.bodySmall,
-            color = mutedText,
-        )
 
         FormLabel("Ad Soyad") {
             OutlinedTextField(
@@ -230,6 +229,8 @@ fun EmergencyProfileEditScreen(
             )
         }
 
+        EmergencyProfilePrivacyInfoCard()
+
         Button(
             onClick = onSaveClick,
             modifier = Modifier
@@ -250,6 +251,39 @@ fun EmergencyProfileEditScreen(
                 Spacer(modifier = Modifier.size(8.dp))
                 Text("Kaydet", fontWeight = FontWeight.Bold)
             }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyProfilePrivacyInfoCard() {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = KalkanBlue.copy(alpha = 0.08f),
+        ),
+        border = BorderStroke(1.dp, KalkanBlue.copy(alpha = 0.2f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Info,
+                contentDescription = null,
+                tint = KalkanBlue,
+                modifier = Modifier
+                    .size(22.dp)
+                    .align(Alignment.Top),
+            )
+            Text(
+                text = EMERGENCY_PROFILE_PRIVACY_NOTICE,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 18.sp,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

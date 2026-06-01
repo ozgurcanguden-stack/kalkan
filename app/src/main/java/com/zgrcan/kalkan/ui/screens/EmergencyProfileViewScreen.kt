@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,14 +19,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.MedicalServices
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -55,6 +59,7 @@ import com.zgrcan.kalkan.model.EmergencyBloodTypes
 import com.zgrcan.kalkan.model.EmergencyProfile
 import com.zgrcan.kalkan.ui.components.AppTopNotificationCenter
 import com.zgrcan.kalkan.util.EmergencyIntentHelper
+import com.zgrcan.kalkan.util.GuestFeatureMessages
 import com.zgrcan.kalkan.viewmodel.EmergencyProfileUiState
 
 const val EMERGENCY_PROFILE_PRIVACY_NOTICE =
@@ -65,6 +70,7 @@ const val EMERGENCY_PROFILE_PRIVACY_NOTICE =
 @Composable
 fun EmergencyProfileViewScreen(
     uiState: EmergencyProfileUiState,
+    isGuest: Boolean = false,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteConfirmed: () -> Unit,
@@ -130,14 +136,25 @@ fun EmergencyProfileViewScreen(
                         title = "Acil Durum Kartı",
                         onBackClick = onBackClick,
                         actions = {
-                            IconButton(onClick = onEditClick) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Edit,
-                                    contentDescription = "Düzenle",
-                                    tint = KalkanBlue,
-                                )
-                            }
-                            if (uiState.profile?.hasAnyData == true) {
+                            val hasCardData = uiState.profile?.hasAnyData == true
+                            if (hasCardData) {
+                                IconButton(
+                                    onClick = {
+                                        if (isGuest) {
+                                            AppTopNotificationCenter.showSuccess(
+                                                GuestFeatureMessages.SIGN_IN_REQUIRED,
+                                            )
+                                        } else {
+                                            onEditClick()
+                                        }
+                                    },
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Edit,
+                                        contentDescription = "Düzenle",
+                                        tint = KalkanBlue,
+                                    )
+                                }
                                 IconButton(
                                     onClick = { showDeleteDialog = true },
                                     enabled = !uiState.isDeleting,
@@ -160,60 +177,15 @@ fun EmergencyProfileViewScreen(
                         },
                     )
 
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.45f)),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                text = "Kan Grubu",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = KalkanTextMuted,
-                            )
-                            Text(
-                                text = uiState.profile?.bloodType?.takeIf { it.isNotBlank() }
-                                    ?: EmergencyBloodTypes.UNKNOWN,
-                                style = MaterialTheme.typography.displaySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = KalkanRed,
-                                textAlign = TextAlign.Center,
-                            )
-                            if (!uiState.profile?.fullName.isNullOrBlank()) {
-                                Text(
-                                    text = uiState.profile?.fullName.orEmpty(),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
+                    when (val profile = uiState.profile?.takeIf { it.hasAnyData }) {
+                        null -> EmergencyProfileEmptyCard(
+                            isGuest = isGuest,
+                            onCreateClick = onEditClick,
+                        )
+                        else -> {
+                            EmergencyProfileHeroCard(profile = profile)
+                            EmergencyProfileInfoCard(profile = profile)
                         }
-                    }
-
-                    val profile = uiState.profile
-                    if (profile == null || !profile.hasAnyData) {
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.45f)),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                text = "Henüz Acil Durum Kartı oluşturmadınız. Düzenle ile bilgilerinizi ekleyebilirsiniz.",
-                                modifier = Modifier.padding(16.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = KalkanTextMuted,
-                            )
-                        }
-                    } else {
-                        EmergencyProfileInfoCard(profile = profile)
                     }
 
                     Card(
@@ -246,6 +218,124 @@ fun EmergencyProfileViewScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyProfileHeroCard(profile: EmergencyProfile) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.45f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Kan Grubu",
+                style = MaterialTheme.typography.labelLarge,
+                color = KalkanTextMuted,
+            )
+            val bloodTypeDisplay = when {
+                profile.bloodType.isBlank() || profile.bloodType == EmergencyBloodTypes.UNKNOWN -> "Belirtilmedi"
+                else -> profile.bloodType
+            }
+            Text(
+                text = bloodTypeDisplay,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = KalkanRed,
+                textAlign = TextAlign.Center,
+            )
+            if (profile.fullName.isNotBlank()) {
+                Text(
+                    text = profile.fullName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyProfileEmptyCard(
+    isGuest: Boolean,
+    onCreateClick: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, KalkanBorder.copy(alpha = 0.45f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(KalkanBlue.copy(alpha = 0.1f), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.MedicalServices,
+                    contentDescription = null,
+                    tint = KalkanBlue,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+            Text(
+                text = "Henüz acil durum kartınız yok",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "Kan grubu, alerji ve acil iletişim bilgilerinizi ekleyerek kartınızı oluşturun.",
+                style = MaterialTheme.typography.bodySmall,
+                color = KalkanTextMuted,
+                textAlign = TextAlign.Center,
+                lineHeight = 18.sp,
+            )
+            OutlinedButton(
+                onClick = {
+                    if (isGuest) {
+                        AppTopNotificationCenter.showSuccess(GuestFeatureMessages.SIGN_IN_REQUIRED)
+                    } else {
+                        onCreateClick()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, KalkanBlue.copy(alpha = 0.5f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = KalkanBlue),
+                contentPadding = PaddingValues(vertical = 12.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = "KART OLUŞTUR",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                )
             }
         }
     }

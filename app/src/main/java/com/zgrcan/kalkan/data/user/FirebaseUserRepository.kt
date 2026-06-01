@@ -3,9 +3,12 @@ package com.zgrcan.kalkan.data.user
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.zgrcan.kalkan.data.firestore.getNumberAsDouble
+import com.zgrcan.kalkan.data.firestore.getNumberAsLong
 import com.zgrcan.kalkan.model.AppUser
 import com.zgrcan.kalkan.model.BackupFrequency
 import com.zgrcan.kalkan.model.UserRole
+import android.util.Log
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -18,10 +21,15 @@ class FirebaseUserRepository @Inject constructor(
     override fun observeUser(uid: String): Flow<AppUser?> = callbackFlow {
         val registration = users.document(uid).addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                Log.e(TAG, "observeUser failed", error)
+                trySend(null)
                 return@addSnapshotListener
             }
-            trySend(snapshot?.toAppUser())
+            val user = runCatching { snapshot?.toAppUser() }.getOrElse { parseError ->
+                Log.e(TAG, "observeUser parse failed", parseError)
+                null
+            }
+            trySend(user)
         }
         awaitClose { registration.remove() }
     }
@@ -56,9 +64,24 @@ class FirebaseUserRepository @Inject constructor(
                 updates["photoUrl"] = authPhotoUrl
             }
             userRef.update(updates).await()
-            requireNotNull(userRef.get().await().toAppUser())
+            userRef.get().await().toAppUser()
+                ?: firebaseUser.toAppUserFromAuth(now)
         }
     }
+
+    private fun FirebaseUser.toAppUserFromAuth(lastLoginAt: Long): AppUser =
+        AppUser(
+            uid = uid,
+            displayName = displayName?.takeIf { it.isNotBlank() } ?: "Kullanıcı",
+            email = email,
+            photoUrl = photoUrl?.toString(),
+            role = UserRole.USER,
+            isAdmin = false,
+            createdAt = lastLoginAt,
+            lastLoginAt = lastLoginAt,
+            earthquakeNotificationsEnabled = true,
+            earthquakeNotificationMinMagnitude = 4.0,
+        )
 
     private val users
         get() = firestore.collection("users")
@@ -93,15 +116,20 @@ class FirebaseUserRepository @Inject constructor(
             photoUrl = getString("photoUrl"),
             role = role,
             isAdmin = getBoolean("isAdmin") == true && role == UserRole.SUPER_ADMIN,
-            createdAt = getLong("createdAt") ?: 0L,
-            lastLoginAt = getLong("lastLoginAt") ?: 0L,
+            createdAt = getNumberAsLong("createdAt") ?: 0L,
+            lastLoginAt = getNumberAsLong("lastLoginAt") ?: 0L,
             fcmToken = getString("fcmToken"),
             notificationPermissionGranted = getBoolean("notificationPermissionGranted") == true,
-            lastFcmTokenUpdatedAt = getLong("lastFcmTokenUpdatedAt") ?: 0L,
+            lastFcmTokenUpdatedAt = getNumberAsLong("lastFcmTokenUpdatedAt") ?: 0L,
             familyGroupId = getString("familyGroupId"),
             familyInviteCode = getString("familyInviteCode"),
             earthquakeNotificationsEnabled = eqEnabled ?: true,
-            earthquakeNotificationMinMagnitude = getDouble("earthquakeNotificationMinMagnitude") ?: if (eqEnabled == false) null else 4.0,
+            earthquakeNotificationMinMagnitude = getNumberAsDouble("earthquakeNotificationMinMagnitude")
+                ?: if (eqEnabled == false) null else 4.0,
         )
+    }
+
+    companion object {
+        private const val TAG = "FirebaseUserRepo"
     }
 }

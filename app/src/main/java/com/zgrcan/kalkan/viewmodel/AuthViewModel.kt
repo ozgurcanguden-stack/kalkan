@@ -11,9 +11,13 @@ import com.zgrcan.kalkan.model.AppUser
 import com.zgrcan.kalkan.ui.components.AppTopNotificationCenter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import android.util.Log
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,7 +42,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             authRepository.signInAsGuest()
-                .onSuccess { syncUser(it) }
+                .onSuccess { syncUser(it, fromUserAction = true) }
                 .onFailure { error ->
                     if (error.isFirebaseConfigurationError()) {
                         val fallbackUser = AppUser(
@@ -115,7 +119,7 @@ class AuthViewModel @Inject constructor(
                     userObserverJob?.cancel()
                     _uiState.value = AuthUiState(isLoading = false)
                 } else {
-                    syncUser(firebaseUser)
+                    syncUser(firebaseUser, fromUserAction = false)
                 }
             }
         }
@@ -125,7 +129,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             block()
-                .onSuccess { syncUser(it) }
+                .onSuccess { syncUser(it, fromUserAction = true) }
                 .onFailure { error ->
                     pendingLoginSuccessMessage = null
                     _uiState.update {
@@ -138,8 +142,30 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    private suspend fun syncUser(firebaseUser: FirebaseUser) {
-        userRepository.ensureUser(firebaseUser)
+    private suspend fun syncUser(firebaseUser: FirebaseUser, fromUserAction: Boolean) {
+        val fallbackUser = firebaseUser.toFallbackAppUser()
+
+        if (fromUserAction) {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        } else if (!_uiState.value.isAuthenticated) {
+            _uiState.value = AuthUiState(
+                isLoading = false,
+                isAuthenticated = true,
+                user = fallbackUser,
+                hasAdminAccess = false,
+            )
+        }
+
+        val ensureResult = try {
+            withTimeout(SYNC_USER_TIMEOUT_MS) {
+                userRepository.ensureUser(firebaseUser)
+            }
+        } catch (_: TimeoutCancellationException) {
+            Log.w(TAG, "ensureUser timed out; using fallback session")
+            Result.success(fallbackUser)
+        }
+
+        ensureResult
             .onSuccess { appUser ->
                 _uiState.value = AuthUiState(
                     isLoading = false,
@@ -147,23 +173,32 @@ class AuthViewModel @Inject constructor(
                     user = appUser,
                     hasAdminAccess = appUser.isAdmin,
                 )
-                showPendingLoginSuccess()
+                if (fromUserAction) {
+                    showPendingLoginSuccess()
+                }
                 observeUserRole(appUser.uid)
-                fcmRepository.syncTokenForCurrentUser(appUser.notificationPermissionGranted)
+                viewModelScope.launch {
+                    fcmRepository.syncTokenForCurrentUser(appUser.notificationPermissionGranted)
+                }
             }
             .onFailure { error ->
                 if (error.isOfflineFirestoreError()) {
-                    val fallbackUser = firebaseUser.toFallbackAppUser()
                     _uiState.value = AuthUiState(
                         isLoading = false,
                         isAuthenticated = true,
                         user = fallbackUser,
                         hasAdminAccess = false,
                     )
-                    showPendingLoginSuccess()
+                    if (fromUserAction) {
+                        showPendingLoginSuccess()
+                    }
+                    observeUserRole(fallbackUser.uid)
                 } else {
                     _uiState.value = AuthUiState(
                         isLoading = false,
+                        isAuthenticated = if (fromUserAction) false else true,
+                        user = if (fromUserAction) null else fallbackUser,
+                        hasAdminAccess = false,
                         errorMessage = error.toAuthMessage(),
                     )
                 }
@@ -178,20 +213,27 @@ class AuthViewModel @Inject constructor(
     private fun observeUserRole(uid: String) {
         userObserverJob?.cancel()
         userObserverJob = viewModelScope.launch {
-            userRepository.observeUser(uid).collect { appUser ->
-                if (appUser != null) {
-                    _uiState.update {
-                        it.copy(
-                            isAuthenticated = true,
-                            user = appUser,
-                            hasAdminAccess = appUser.isAdmin,
-                        )
+            userRepository.observeUser(uid)
+                .catch { error ->
+                    Log.e(TAG, "observeUser flow failed", error)
+                }
+                .collect { appUser ->
+                    if (appUser != null) {
+                        _uiState.update {
+                            it.copy(
+                                isAuthenticated = true,
+                                user = appUser,
+                                hasAdminAccess = appUser.isAdmin,
+                            )
+                        }
                     }
                 }
-            }
         }
     }
 }
+
+private const val TAG = "AuthViewModel"
+private const val SYNC_USER_TIMEOUT_MS = 12_000L
 
 private fun FirebaseUser.toFallbackAppUser(): AppUser =
     AppUser(
@@ -239,7 +281,7 @@ private fun Throwable.isOfflineFirestoreError(): Boolean =
     localizedMessage.orEmpty().contains("client is offline", ignoreCase = true)
 
 data class AuthUiState(
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val isAuthenticated: Boolean = false,
     val user: AppUser? = null,
     val hasAdminAccess: Boolean = false,

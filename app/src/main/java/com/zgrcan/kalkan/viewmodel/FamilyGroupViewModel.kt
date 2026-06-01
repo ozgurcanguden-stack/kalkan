@@ -6,6 +6,7 @@ import com.zgrcan.kalkan.data.family.FamilyRepository
 import com.zgrcan.kalkan.model.AppUser
 import com.zgrcan.kalkan.model.FamilyGroup
 import com.zgrcan.kalkan.model.FamilyMember
+import com.zgrcan.kalkan.util.GuestFeatureMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,30 +33,53 @@ class FamilyGroupViewModel @Inject constructor(
         if (user != null) {
             activeUser = user
         }
-        if (user == null || user.familyGroupId.isNullOrBlank()) {
-            observeGroupJob?.cancel()
-            observeMembersJob?.cancel()
-            _uiState.update {
-                it.copy(
-                    familyGroup = null,
-                    members = emptyList(),
-                    hasGroup = false,
-                    isLoading = false
-                )
-            }
+        val currentUser = user ?: activeUser
+        if (currentUser == null) {
+            resetWithoutGroup()
             return
         }
 
-        val groupId = user.familyGroupId
-        _uiState.update {
-            it.copy(
-                isLoading = true,
-                hasGroup = false,
-                familyGroup = null,
-                members = emptyList(),
-                error = null,
-            )
+        if (currentUser.familyGroupId.isNullOrBlank()) {
+            resetWithoutGroup()
+            return
         }
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    hasGroup = false,
+                    familyGroup = null,
+                    members = emptyList(),
+                    error = null,
+                )
+            }
+
+            val effectiveUser = resolveUserAfterStaleGroupCheck(currentUser)
+            val groupId = effectiveUser.familyGroupId
+            if (groupId.isNullOrBlank()) {
+                resetWithoutGroup()
+                return@launch
+            }
+
+            observeFamilyGroupData(groupId, effectiveUser)
+        }
+    }
+
+    private suspend fun resolveUserAfterStaleGroupCheck(user: AppUser): AppUser {
+        val wasCleared = familyRepository.clearStaleFamilyGroupIfMissing(user).getOrDefault(false)
+        if (!wasCleared) {
+            return user
+        }
+        val clearedUser = user.copy(familyGroupId = null, familyInviteCode = null)
+        activeUser = clearedUser
+        _uiState.update {
+            it.copy(actionSuccessMessage = "Aile grubu bilgisi güncellendi.")
+        }
+        return clearedUser
+    }
+
+    private fun observeFamilyGroupData(groupId: String, user: AppUser) {
         viewModelScope.launch {
             familyRepository.syncCurrentMemberProfile(user, groupId)
         }
@@ -63,10 +87,10 @@ class FamilyGroupViewModel @Inject constructor(
         observeGroupJob?.cancel()
         observeGroupJob = viewModelScope.launch {
             familyRepository.observeFamilyGroup(groupId)
-                .catch { err ->
+                .catch {
                     _uiState.update {
                         it.copy(
-                            error = err.message ?: "Grup bilgisi yüklenemedi.",
+                            error = "Grup bilgisi yüklenemedi.",
                             isLoading = false,
                             hasGroup = false,
                             familyGroup = null,
@@ -89,10 +113,10 @@ class FamilyGroupViewModel @Inject constructor(
         observeMembersJob?.cancel()
         observeMembersJob = viewModelScope.launch {
             familyRepository.observeFamilyMembers(groupId)
-                .catch { err ->
+                .catch {
                     _uiState.update {
                         it.copy(
-                            error = err.message ?: "Üye listesi yüklenemedi.",
+                            error = "Üye listesi yüklenemedi.",
                             isLoading = false,
                         )
                     }
@@ -108,12 +132,21 @@ class FamilyGroupViewModel @Inject constructor(
         }
     }
 
-    fun createFamilyGroup(groupName: String) {
-        val user = activeUser
-        if (user == null || user.uid.isBlank()) {
-            _uiState.update { it.copy(error = "Lütfen giriş yapın.") }
-            return
+    private fun resetWithoutGroup() {
+        observeGroupJob?.cancel()
+        observeMembersJob?.cancel()
+        _uiState.update {
+            it.copy(
+                familyGroup = null,
+                members = emptyList(),
+                hasGroup = false,
+                isLoading = false,
+            )
         }
+    }
+
+    fun createFamilyGroup(groupName: String) {
+        val user = requireGoogleSignedInUser() ?: return
         if (groupName.isBlank()) {
             _uiState.update { it.copy(error = "Grup adı boş olamaz.") }
             return
@@ -128,7 +161,7 @@ class FamilyGroupViewModel @Inject constructor(
                             isActionLoading = false,
                             familyGroup = group,
                             hasGroup = true,
-                            actionSuccessMessage = "Aile grubu başarıyla oluşturuldu."
+                            actionSuccessMessage = "Aile grubu başarıyla oluşturuldu.",
                         )
                     }
                     loadFamilyGroup(user.copy(familyGroupId = group.id, familyInviteCode = group.inviteCode))
@@ -137,7 +170,7 @@ class FamilyGroupViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isActionLoading = false,
-                            error = err.message ?: "Grup oluşturulurken hata oluştu."
+                            error = err.message ?: "Grup oluşturulurken hata oluştu.",
                         )
                     }
                 }
@@ -145,11 +178,7 @@ class FamilyGroupViewModel @Inject constructor(
     }
 
     fun joinFamilyGroup(inviteCode: String) {
-        val user = activeUser
-        if (user == null || user.uid.isBlank()) {
-            _uiState.update { it.copy(error = "Lütfen giriş yapın.") }
-            return
-        }
+        val user = requireGoogleSignedInUser() ?: return
         if (inviteCode.isBlank()) {
             _uiState.update { it.copy(error = "Davet kodu boş olamaz.") }
             return
@@ -164,7 +193,7 @@ class FamilyGroupViewModel @Inject constructor(
                             isActionLoading = false,
                             familyGroup = group,
                             hasGroup = true,
-                            actionSuccessMessage = "Aile grubuna başarıyla katıldınız."
+                            actionSuccessMessage = "Aile grubuna başarıyla katıldınız.",
                         )
                     }
                     loadFamilyGroup(user.copy(familyGroupId = group.id))
@@ -173,7 +202,7 @@ class FamilyGroupViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isActionLoading = false,
-                            error = err.message ?: "Gruba katılırken hata oluştu. Davet kodunu kontrol edin."
+                            error = err.message ?: "Gruba katılırken hata oluştu. Davet kodunu kontrol edin.",
                         )
                     }
                 }
@@ -197,7 +226,7 @@ class FamilyGroupViewModel @Inject constructor(
                             familyGroup = null,
                             members = emptyList(),
                             hasGroup = false,
-                            actionSuccessMessage = "Aile grubundan başarıyla ayrıldınız."
+                            actionSuccessMessage = "Aile grubundan başarıyla ayrıldınız.",
                         )
                     }
                     loadFamilyGroup(user.copy(familyGroupId = null, familyInviteCode = null))
@@ -206,7 +235,7 @@ class FamilyGroupViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isActionLoading = false,
-                            error = err.message ?: "Gruptan ayrılırken hata oluştu."
+                            error = err.message ?: "Gruptan ayrılırken hata oluştu.",
                         )
                     }
                 }
@@ -230,7 +259,7 @@ class FamilyGroupViewModel @Inject constructor(
                             familyGroup = null,
                             members = emptyList(),
                             hasGroup = false,
-                            actionSuccessMessage = "Aile grubu başarıyla silindi."
+                            actionSuccessMessage = "Aile grubu başarıyla silindi.",
                         )
                     }
                     loadFamilyGroup(user.copy(familyGroupId = null, familyInviteCode = null))
@@ -239,7 +268,7 @@ class FamilyGroupViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isActionLoading = false,
-                            error = err.message ?: "Grup silinirken hata oluştu."
+                            error = err.message ?: "Grup silinirken hata oluştu.",
                         )
                     }
                 }
@@ -257,6 +286,21 @@ class FamilyGroupViewModel @Inject constructor(
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
+
+    private fun requireGoogleSignedInUser(): AppUser? {
+        val user = activeUser
+        return when {
+            user == null || user.uid.isBlank() -> {
+                _uiState.update { it.copy(error = "Lütfen giriş yapın.") }
+                null
+            }
+            user.isGuest -> {
+                _uiState.update { it.copy(error = GuestFeatureMessages.SIGN_IN_REQUIRED) }
+                null
+            }
+            else -> user
+        }
+    }
 }
 
 data class FamilyGroupUiState(
@@ -272,5 +316,5 @@ data class FamilyGroupUiState(
 private fun List<FamilyMember>.sortedByEmergencyPriority(): List<FamilyMember> =
     sortedWith(
         compareBy<FamilyMember> { it.statusPriority }
-            .thenByDescending { it.lastStatusAt ?: 0L }
+            .thenByDescending { it.lastStatusAt ?: 0L },
     )

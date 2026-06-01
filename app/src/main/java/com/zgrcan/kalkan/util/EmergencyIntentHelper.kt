@@ -6,6 +6,8 @@ import android.net.Uri
 import com.zgrcan.kalkan.model.UserLocation
 
 object EmergencyIntentHelper {
+    const val EMERGENCY_NUMBER_112 = "112"
+
     const val DEFAULT_EMERGENCY_MESSAGE =
         "Kalkan - Afet ve Acil Durum Platformu \nüzerinden ACİL DURUM BİLDİRİMİ gönderiyorum. Lütfen benimle iletişime geç."
 
@@ -17,6 +19,8 @@ object EmergencyIntentHelper {
         }
         return "$DEFAULT_EMERGENCY_MESSAGE\n\nKonumum:\nhttps://maps.google.com/?q=$latitude,$longitude"
     }
+
+    fun openEmergency112Dialer(context: Context): Boolean = openDialer(context, EMERGENCY_NUMBER_112)
 
     fun openDialer(context: Context, phone: String): Boolean {
         val formatted = PhoneNumberUtils.cleanForIntent(phone)

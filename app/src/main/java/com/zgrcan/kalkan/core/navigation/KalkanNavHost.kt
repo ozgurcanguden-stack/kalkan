@@ -284,6 +284,7 @@ fun KalkanNavHost(
                         )
                     },
                     onDismissSafetyMessage = safetyStatusViewModel::clearSnackbarMessage,
+                    onLoadSafetyStatus = safetyStatusViewModel::loadLatestStatus,
                     currentUser = user,
                     onSettingsClick = {
                         navController.navigate(KalkanRoute.Profile.route) {
@@ -404,6 +405,7 @@ fun KalkanNavHost(
                 FamilyScreen(
                     contactsState = contactsState,
                     familyGroupState = familyGroupState,
+                    isGuest = user?.isGuest == true,
                     currentUserUid = userUid.orEmpty(),
                     onAddContactClick = {
                         navController.navigate(KalkanRoute.AddEmergencyContact.route)
@@ -458,11 +460,15 @@ fun KalkanNavHost(
                 val emergencyProfileState by emergencyProfileViewModel.uiState.collectAsState()
                 val user = authState.user
 
-                LaunchedEffect(user?.uid) {
-                    emergencyProfileViewModel.startObserving(user?.uid)
+                LaunchedEffect(user?.uid, user?.isGuest) {
+                    emergencyProfileViewModel.openViewScreen(
+                        uid = user?.uid,
+                        isGuest = user?.isGuest == true,
+                    )
                 }
 
                 EmergencyProfileViewScreen(
+                    isGuest = user?.isGuest == true,
                     uiState = emergencyProfileState,
                     onBackClick = { navController.popBackStack() },
                     onEditClick = {

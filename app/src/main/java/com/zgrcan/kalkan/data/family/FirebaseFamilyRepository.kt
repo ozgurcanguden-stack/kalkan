@@ -392,4 +392,25 @@ class FirebaseFamilyRepository @Inject constructor(
             throw Exception("Grup silinemedi. Lütfen veritabanı kurallarınızı (Firestore Rules) kontrol edin.")
         }
     }
+
+    override suspend fun clearStaleFamilyGroupIfMissing(user: AppUser): Result<Boolean> = runCatching {
+        val groupId = user.familyGroupId?.trim().orEmpty()
+        if (groupId.isBlank() || user.uid.isBlank()) {
+            return@runCatching false
+        }
+
+        val groupSnapshot = firestore.collection("family_groups").document(groupId).get().await()
+        if (groupSnapshot.exists()) {
+            return@runCatching false
+        }
+
+        firestore.collection("users").document(user.uid).update(
+            mapOf(
+                "familyGroupId" to null,
+                "familyInviteCode" to null,
+            ),
+        ).await()
+        Log.d("FirebaseFamilyRepository", "Cleared stale familyGroupId for user=${user.uid}")
+        true
+    }
 }

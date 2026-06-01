@@ -7,6 +7,7 @@ import com.zgrcan.kalkan.data.contacts.normalizedPhoneDigits
 import com.zgrcan.kalkan.data.emergencyprofile.EmergencyProfileRepository
 import com.zgrcan.kalkan.model.EmergencyBloodTypes
 import com.zgrcan.kalkan.model.EmergencyProfile
+import com.zgrcan.kalkan.util.GuestFeatureMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,10 +28,41 @@ class EmergencyProfileViewModel @Inject constructor(
 
     private var observeJob: Job? = null
     private var activeUid: String? = null
+    private var isGuestUser: Boolean = false
 
-    fun startObserving(uid: String?) {
+    /** Acil Durum Kartı ekranı — tek seferlik okuma; sürekli listener açmaz. */
+    fun openViewScreen(uid: String?, isGuest: Boolean) {
         observeJob?.cancel()
         activeUid = uid
+        isGuestUser = isGuest
+
+        if (uid.isNullOrBlank() || isGuest) {
+            _uiState.value = EmergencyProfileUiState(
+                isLoading = false,
+                errorMessage = if (isGuest) null else "Acil Durum Kartı için giriş yapmalısınız.",
+            )
+            return
+        }
+
+        val cached = emergencyProfileRepository.getCachedProfile(uid)
+        _uiState.value = EmergencyProfileUiState(
+            profile = cached,
+            isLoading = cached == null,
+            errorMessage = null,
+        )
+
+        observeJob = viewModelScope.launch {
+            val profile = emergencyProfileRepository.fetchProfileOnce(uid)
+            _uiState.update {
+                it.copy(profile = profile, isLoading = false, errorMessage = null)
+            }
+        }
+    }
+
+    fun startObserving(uid: String?, isGuest: Boolean = false) {
+        observeJob?.cancel()
+        activeUid = uid
+        isGuestUser = isGuest
 
         if (uid.isNullOrBlank()) {
             _uiState.value = EmergencyProfileUiState(
@@ -130,6 +162,10 @@ class EmergencyProfileViewModel @Inject constructor(
             _uiState.update { it.copy(formError = "Kaydetmek için giriş yapmalısınız.") }
             return
         }
+        if (isGuestUser) {
+            _uiState.update { it.copy(formError = GuestFeatureMessages.SIGN_IN_REQUIRED) }
+            return
+        }
 
         val form = _uiState.value.form
         val phoneDigits = form.primaryContactPhone.normalizedPhoneDigits()
@@ -161,11 +197,11 @@ class EmergencyProfileViewModel @Inject constructor(
                     )
                 }
                 onSuccess()
-            }.onFailure { error ->
+            }.onFailure {
                 _uiState.update {
                     it.copy(
                         isSaving = false,
-                        formError = error.message ?: "Kayıt başarısız oldu.",
+                        formError = "Acil Durum Kartı kaydedilemedi. Lütfen tekrar deneyin.",
                     )
                 }
             }
@@ -206,6 +242,11 @@ class EmergencyProfileViewModel @Inject constructor(
 
     fun clearMessages() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null, formError = null) }
+    }
+
+    override fun onCleared() {
+        observeJob?.cancel()
+        super.onCleared()
     }
 
     companion object {

@@ -13,4 +13,7 @@ interface FamilyRepository {
     suspend fun syncCurrentMemberProfile(user: AppUser, groupId: String): Result<Unit>
     suspend fun leaveFamilyGroup(user: AppUser, groupId: String): Result<Unit>
     suspend fun deleteFamilyGroup(user: AppUser, groupId: String): Result<Unit>
+
+    /** Tek okuma: grup yoksa kullanıcıdaki familyGroupId / familyInviteCode temizlenir. */
+    suspend fun clearStaleFamilyGroupIfMissing(user: AppUser): Result<Boolean>
 }

@@ -5,6 +5,7 @@ import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.zgrcan.kalkan.data.firestore.getNumberAsLong
 import com.zgrcan.kalkan.model.EmergencyBloodTypes
 import com.zgrcan.kalkan.model.EmergencyProfile
 import kotlinx.coroutines.channels.awaitClose
@@ -36,7 +37,10 @@ class FirebaseEmergencyProfileRepository @Inject constructor(
                 trySend(cache[uid])
                 return@addSnapshotListener
             }
-            val profile = snapshot?.toEmergencyProfile()
+            val profile = runCatching { snapshot?.toEmergencyProfile() }.getOrElse { parseError ->
+                Log.e(TAG, "observeProfile parse failed", parseError)
+                cache[uid]
+            }
             cache[uid] = profile
             trySend(profile)
         }
@@ -63,6 +67,16 @@ class FirebaseEmergencyProfileRepository @Inject constructor(
 
     override fun getCachedProfile(uid: String): EmergencyProfile? = cache[uid]
 
+    override suspend fun fetchProfileOnce(uid: String): EmergencyProfile? = runCatching {
+        if (uid.isBlank()) return@runCatching null
+        val profile = profileDocument(uid).get().await().toEmergencyProfile()
+        cache[uid] = profile
+        profile
+    }.getOrElse { error ->
+        Log.e(TAG, "fetchProfileOnce failed", error)
+        cache[uid]
+    }
+
     private fun profileDocument(uid: String) =
         firestore.collection("users")
             .document(uid)
@@ -83,19 +97,29 @@ class FirebaseEmergencyProfileRepository @Inject constructor(
 
     private fun DocumentSnapshot.toEmergencyProfile(): EmergencyProfile? {
         if (!exists()) return null
-        val bloodType = getString("bloodType").orEmpty()
+        val bloodType = readStringField("bloodType")
         return EmergencyProfile(
-            fullName = getString("fullName").orEmpty(),
+            fullName = readStringField("fullName"),
             bloodType = bloodType.ifBlank { EmergencyBloodTypes.UNKNOWN },
-            allergies = getString("allergies").orEmpty(),
-            chronicDiseases = getString("chronicDiseases").orEmpty(),
-            medications = getString("medications").orEmpty(),
-            emergencyNote = getString("emergencyNote").orEmpty(),
-            primaryContactName = getString("primaryContactName").orEmpty(),
-            primaryContactPhone = getString("primaryContactPhone").orEmpty(),
-            updatedAt = getLong("updatedAt") ?: 0L,
+            allergies = readStringField("allergies"),
+            chronicDiseases = readStringField("chronicDiseases"),
+            medications = readStringField("medications"),
+            emergencyNote = readStringField("emergencyNote"),
+            primaryContactName = readStringField("primaryContactName"),
+            primaryContactPhone = readPhoneField("primaryContactPhone"),
+            updatedAt = getNumberAsLong("updatedAt") ?: 0L,
         )
     }
+
+    private fun DocumentSnapshot.readStringField(field: String): String =
+        when (val value = get(field)) {
+            null -> ""
+            is String -> value
+            else -> value.toString()
+        }
+
+    private fun DocumentSnapshot.readPhoneField(field: String): String =
+        readStringField(field).filter { it.isDigit() }
 
     private fun <T> Result<T>.recoverWith(userMessage: String): Result<T> {
         val ex = exceptionOrNull() ?: return this
