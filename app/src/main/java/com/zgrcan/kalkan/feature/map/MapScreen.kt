@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +59,7 @@ private val StitchOutline = Color(0xFF76777D)
 @Composable
 fun MapScreen(
     user: AppUser?,
+    focusFamilyMembers: Boolean = false,
     earthquakeViewModel: EarthquakeViewModel = hiltViewModel(),
     familyGroupViewModel: FamilyGroupViewModel = hiltViewModel(),
 ) {
@@ -70,6 +72,23 @@ fun MapScreen(
     var showFamilyLayer by remember { mutableStateOf(true) }
     var selectedItem by remember { mutableStateOf<MapSelectedItem?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var pendingFamilyFocus by remember { mutableStateOf(false) }
+
+    LaunchedEffect(focusFamilyMembers) {
+        if (focusFamilyMembers) {
+            pendingFamilyFocus = true
+            showEarthquakeLayer = false
+            showFamilyLayer = true
+            if (selectedItem is MapSelectedItem.EarthquakeItem) {
+                selectedItem = null
+            }
+        } else {
+            pendingFamilyFocus = false
+            showEarthquakeLayer = true
+            showFamilyLayer = true
+        }
+    }
+    var familyFocusRequestKey by remember { mutableStateOf(0) }
 
     LaunchedEffect(user?.uid, user?.familyGroupId) {
         familyGroupViewModel.loadFamilyGroup(user)
@@ -89,6 +108,20 @@ fun MapScreen(
 
     val earthquakes = remember(earthquakeState) { extractEarthquakes(earthquakeState) }
     val familyMembers = familyState.members
+    val locatableFamilyMembers = remember(familyMembers) { familyMembers.withSharedMapLocations() }
+
+    LaunchedEffect(pendingFamilyFocus, focusFamilyMembers, familyState.isLoading, locatableFamilyMembers) {
+        if (!focusFamilyMembers || !pendingFamilyFocus || familyState.isLoading) return@LaunchedEffect
+        showEarthquakeLayer = false
+        showFamilyLayer = true
+        familyFocusRequestKey++
+        pendingFamilyFocus = false
+    }
+
+    val showFamilyEmptyMessage = focusFamilyMembers &&
+        !familyState.isLoading &&
+        familyState.hasGroup &&
+        locatableFamilyMembers.isEmpty()
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (MapsConfig.isConfigured) {
@@ -99,10 +132,20 @@ fun MapScreen(
                 showFamilyMarkers = showFamilyLayer && familyState.hasGroup,
                 selectedItem = selectedItem,
                 onMarkerClick = { selectedItem = it },
+                familyFocusRequestKey = familyFocusRequestKey,
+                locatableFamilyMembers = locatableFamilyMembers,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
             MapApiKeyPlaceholder(modifier = Modifier.fillMaxSize())
+        }
+
+        if (showFamilyEmptyMessage) {
+            FamilyMapEmptyStateBanner(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 32.dp),
+            )
         }
 
         MapFloatingOverlay(
@@ -208,16 +251,16 @@ private fun MapFloatingOverlay(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             MapLayerChip(
-                label = "Depremler",
-                icon = Icons.Rounded.Public,
-                selected = showEarthquakeLayer,
-                onClick = onEarthquakeLayerToggle,
-            )
-            MapLayerChip(
                 label = "Aile",
                 icon = Icons.Rounded.Groups,
                 selected = showFamilyLayer,
                 onClick = onFamilyLayerToggle,
+            )
+            MapLayerChip(
+                label = "Depremler",
+                icon = Icons.Rounded.Public,
+                selected = showEarthquakeLayer,
+                onClick = onEarthquakeLayerToggle,
             )
         }
 
@@ -263,6 +306,26 @@ private fun MapLayerChip(
             style = MaterialTheme.typography.labelLarge,
             color = content,
             fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun FamilyMapEmptyStateBanner(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(StitchSurface.copy(alpha = 0.96f))
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = "Aile üyelerinizin paylaşılan konumu bulunmuyor.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
         )
     }
 }

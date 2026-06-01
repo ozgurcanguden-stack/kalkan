@@ -3,6 +3,7 @@ package com.zgrcan.kalkan.feature.family
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,6 +83,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -135,6 +137,7 @@ fun FamilyScreen(
     onClearFamilySuccessMessage: () -> Unit,
     onLeaveFamilyGroup: (String) -> Unit,
     onDeleteFamilyGroup: (String) -> Unit,
+    onOpenFamilyMap: () -> Unit,
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -252,7 +255,12 @@ fun FamilyScreen(
                 onWhatsAppContact = { handleWhatsApp(it) },
             )
 
-            FamilyMapPreview()
+            FamilyMapPreview(
+                members = familyGroupState.members,
+                hasGroup = familyGroupState.hasGroup,
+                isLoading = familyGroupState.isLoading,
+                onOpenFamilyMap = onOpenFamilyMap,
+            )
             Spacer(modifier = Modifier.height(12.dp))
         }
 
@@ -966,44 +974,6 @@ private fun FamilyMemberCard(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun FamilyMapPreview() {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, KalkanBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(190.dp)
-                .background(Brush.linearGradient(listOf(Color(0xFFE8EEF7), Color(0xFFDDE7F2)))),
-        ) {
-            IconButton(
-                onClick = {},
-                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).background(Color.White.copy(alpha = 0.9f), CircleShape),
-            ) {
-                Icon(Icons.Rounded.Fullscreen, contentDescription = null)
-            }
-            Box(
-                modifier = Modifier.align(Alignment.Center).offset(x = (-36).dp, y = 8.dp).size(34.dp).background(Color(0xFF137333), CircleShape).border(BorderStroke(2.dp, Color.White), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("E", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-            Row(
-                modifier = Modifier.align(Alignment.BottomStart).padding(14.dp).background(Color.White.copy(alpha = 0.92f), CircleShape).padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Rounded.MyLocation, contentDescription = null, tint = KalkanBlue, modifier = Modifier.size(16.dp))
-                Text("Haritada Gör", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
             }
         }
     }

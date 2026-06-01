@@ -24,3 +24,13 @@ fun SafetyStatusType?.markerHue(): Float =
         SafetyStatusType.SHARE_LOCATION -> BitmapDescriptorFactory.HUE_BLUE
         null -> BitmapDescriptorFactory.HUE_VIOLET
     }
+
+/** Harita marker snippet / bilgi satırı (aile üyesi). */
+fun SafetyStatusType?.familyMapStatusLabel(): String =
+    when (this) {
+        SafetyStatusType.SAFE -> "İYİYİM"
+        SafetyStatusType.NEED_HELP -> "YARDIM İSTİYOR"
+        SafetyStatusType.SOS -> "SOS"
+        SafetyStatusType.SHARE_LOCATION -> "KONUM PAYLAŞ"
+        null -> "BELİRSİZ"
+    }

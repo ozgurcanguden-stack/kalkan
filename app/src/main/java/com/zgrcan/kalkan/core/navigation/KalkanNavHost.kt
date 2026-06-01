@@ -78,6 +78,7 @@ import com.zgrcan.kalkan.viewmodel.EmergencyProfileViewModel
 import com.zgrcan.kalkan.viewmodel.SafetyStatusViewModel
 import com.zgrcan.kalkan.viewmodel.FamilyGroupViewModel
 import com.zgrcan.kalkan.viewmodel.EarthquakeMonitorViewModel
+import com.zgrcan.kalkan.util.GuestFeatureMessages
 import com.zgrcan.kalkan.ui.screens.admin.EarthquakeMonitorScreen
 import com.zgrcan.kalkan.model.BackupFrequency
 import androidx.compose.runtime.collectAsState
@@ -109,6 +110,18 @@ private fun shouldShowBottomBar(route: String?): Boolean {
         !route.startsWith("announcement_detail") &&
         !route.startsWith("earthquake_detail")
 }
+
+private fun KalkanRoute.bottomNavDestination(): String =
+    when (this) {
+        KalkanRoute.Map -> KalkanRoute.Map.createRoute(focusFamilyMembers = false)
+        else -> route
+    }
+
+private fun isBottomNavSelected(currentRoute: String?, tab: KalkanRoute): Boolean =
+    when (tab) {
+        KalkanRoute.Map -> currentRoute?.startsWith(KalkanRoute.Map.baseRoute) == true
+        else -> currentRoute == tab.route
+    }
 
 @Composable
 fun KalkanNavHost(
@@ -190,16 +203,17 @@ fun KalkanNavHost(
                     tonalElevation = NavigationBarDefaults.Elevation,
                 ) {
                     bottomRoutes.forEach { item ->
-                        val selected = currentRoute == item.route.route
+                        val selected = isBottomNavSelected(currentRoute, item.route)
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
-                                navController.navigate(item.route.route) {
+                                navController.navigate(item.route.bottomNavDestination()) {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
                                     }
                                     launchSingleTop = true
-                                    restoreState = true
+                                    // Harita sekmesi: aile modundan kalan katman seçimini geri yükleme
+                                    restoreState = item.route != KalkanRoute.Map
                                 }
                             },
                             label = { Text(text = item.route.title) },
@@ -383,8 +397,21 @@ fun KalkanNavHost(
                     )
                 }
             }
-            composable(KalkanRoute.Map.route) {
-                MapScreen(user = authState.user)
+            composable(
+                route = KalkanRoute.Map.route,
+                arguments = listOf(
+                    navArgument(KalkanRoute.Map.FOCUS_FAMILY_MEMBERS_ARG) {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
+            ) { backStackEntry ->
+                val focusFamilyMembers = backStackEntry.arguments
+                    ?.getBoolean(KalkanRoute.Map.FOCUS_FAMILY_MEMBERS_ARG) == true
+                MapScreen(
+                    user = authState.user,
+                    focusFamilyMembers = focusFamilyMembers,
+                )
             }
             composable(KalkanRoute.Family.route) {
                 val emergencyContactsViewModel: EmergencyContactsViewModel = hiltViewModel()
@@ -419,6 +446,23 @@ fun KalkanNavHost(
                     onClearFamilySuccessMessage = familyGroupViewModel::clearActionSuccessMessage,
                     onLeaveFamilyGroup = familyGroupViewModel::leaveFamilyGroup,
                     onDeleteFamilyGroup = familyGroupViewModel::deleteFamilyGroup,
+                    onOpenFamilyMap = {
+                        if (user?.isGuest == true) {
+                            emergencyContactsViewModel.showActionMessage(
+                                GuestFeatureMessages.SIGN_IN_REQUIRED,
+                            )
+                        } else {
+                            navController.navigate(
+                                KalkanRoute.Map.createRoute(focusFamilyMembers = true),
+                            ) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = false
+                            }
+                        }
+                    },
                 )
             }
             composable(KalkanRoute.AddEmergencyContact.route) {

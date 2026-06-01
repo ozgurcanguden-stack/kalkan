@@ -8,7 +8,14 @@ sealed class KalkanRoute(val route: String, val title: String) {
     data object EarthquakeDetail : KalkanRoute("earthquake_detail/{earthquakeId}", "Deprem Detayı") {
         fun createRoute(earthquakeId: String) = "earthquake_detail/${Uri.encode(earthquakeId)}"
     }
-    data object Map : KalkanRoute("map", "Harita")
+    data object Map : KalkanRoute("map?focusFamilyMembers={focusFamilyMembers}", "Harita") {
+        const val FOCUS_FAMILY_MEMBERS_ARG = "focusFamilyMembers"
+
+        fun createRoute(focusFamilyMembers: Boolean = false): String =
+            "map?focusFamilyMembers=$focusFamilyMembers"
+
+        val baseRoute: String = "map"
+    }
     data object Family : KalkanRoute("family", "Ailem")
     data object AddEmergencyContact : KalkanRoute("add_emergency_contact", "Kişi Ekle")
     data object EmergencyProfileView : KalkanRoute("emergency_profile", "Acil Durum Kartı")
