@@ -442,17 +442,26 @@ class FirebaseFamilyRepository @Inject constructor(
             )
         }
 
+        val membersSnapshot = firestore.collection("family_groups").document(groupId)
+            .collection("members")
+            .get()
+            .await()
+        val hasOtherMembers = membersSnapshot.documents.any { it.id != user.uid }
+        if (!hasOtherMembers) {
+            throw IllegalStateException("Aile grubunuzda bildirim gönderilecek başka üye bulunmuyor.")
+        }
+
         val requestRef = firestore.collection("family_check_requests").document()
         val requesterName = user.displayName.ifBlank { "Kullanıcı" }
         firestore.runBatch { batch ->
             batch.set(
                 requestRef,
                 mapOf(
-                    "id" to requestRef.id,
-                    "requesterUid" to user.uid,
-                    "requesterName" to requesterName,
-                    "groupId" to groupId,
+                    "familyGroupId" to groupId,
+                    "requestedByUid" to user.uid,
+                    "requestedByName" to requesterName,
                     "createdAt" to now,
+                    "status" to "sent",
                 ),
             )
             batch.update(

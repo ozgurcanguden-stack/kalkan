@@ -27,6 +27,7 @@ object NotificationNavigation {
                     NotificationNavigationTarget.Home
                 }
             }
+            "family_check_request" -> NotificationNavigationTarget.Family
             "sos_alert", "help_request", "family_safety_alert" -> {
                 val statusType = data["statusType"].orEmpty().trim()
                 val senderUid = (data["senderUid"] ?: data["sourceUid"]).orEmpty().trim()

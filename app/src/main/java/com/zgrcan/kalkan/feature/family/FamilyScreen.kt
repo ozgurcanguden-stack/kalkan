@@ -147,6 +147,20 @@ fun FamilyScreen(
     var contactToDeleteId by remember { mutableStateOf<String?>(null) }
     var familyGroupToDeleteId by remember { mutableStateOf<String?>(null) }
     var familyGroupToLeaveId by remember { mutableStateOf<String?>(null) }
+    var showFamilyCheckDialog by remember { mutableStateOf(false) }
+
+    fun openFamilyCheckDialog() {
+        when {
+            isGuest -> onShowActionMessage(GuestFeatureMessages.SIGN_IN_REQUIRED)
+            !familyGroupState.hasGroup -> {
+                onShowActionMessage("Durum kontrolü için önce bir aile grubuna katılın.")
+            }
+            familyGroupState.members.none { it.uid != currentUserUid && it.uid.isNotBlank() } -> {
+                onShowActionMessage("Aile grubunuzda bildirim gönderilecek başka üye bulunmuyor.")
+            }
+            else -> showFamilyCheckDialog = true
+        }
+    }
 
     fun handleCall(contact: EmergencyContact) {
         if (!EmergencyIntentHelper.openDialer(context, contact.phone)) {
@@ -198,7 +212,7 @@ fun FamilyScreen(
         ) {
             FamilyTopBar()
             SafetyCheckCard(
-                onClick = onRequestFamilyStatusCheck,
+                onClick = ::openFamilyCheckDialog,
                 isLoading = familyGroupState.isActionLoading,
             )
 
@@ -266,6 +280,44 @@ fun FamilyScreen(
                 onOpenFamilyMap = onOpenFamilyMap,
             )
             Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (showFamilyCheckDialog) {
+            AlertDialog(
+                onDismissRequest = { showFamilyCheckDialog = false },
+                title = { Text("Durum kontrolü başlatılsın mı?", fontWeight = FontWeight.Bold) },
+                text = {
+                    Text(
+                        "Aile üyelerinize güvenlik durumlarını paylaşmaları için bildirim gönderilecek.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showFamilyCheckDialog = false
+                            onRequestFamilyStatusCheck()
+                        },
+                        enabled = !familyGroupState.isActionLoading,
+                        colors = ButtonDefaults.buttonColors(containerColor = KalkanBlue),
+                    ) {
+                        if (familyGroupState.isActionLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Text("Gönder")
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showFamilyCheckDialog = false }) {
+                        Text("İptal")
+                    }
+                },
+            )
         }
 
         if (contactToDeleteId != null) {
@@ -479,15 +531,43 @@ private fun SafetyCheckCard(
         modifier = Modifier.clickable(enabled = !isLoading, onClick = onClick),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
-                Text("Herkes Güvende mi?", style = MaterialTheme.typography.titleLarge, color = Color.White)
-                Text("Hızlı durum kontrolü başlat", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFBEC6E0))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "Aile Durum Kontrolü",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Yakınlarınızdan güvenlik durumlarını paylaşmalarını isteyin.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFBEC6E0),
+                )
+                Text(
+                    text = "Kontrol Başlat",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(KalkanBlue.copy(alpha = 0.35f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
             }
-            Box(modifier = Modifier.size(48.dp).background(KalkanBlue, CircleShape), contentAlignment = Alignment.Center) {
+            Spacer(modifier = Modifier.width(12.dp))
+            Box(
+                modifier = Modifier.size(48.dp).background(KalkanBlue, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         color = Color.White,

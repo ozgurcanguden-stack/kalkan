@@ -31,6 +31,17 @@ interface SafetyStatusData {
   statusType?: string;
 }
 
+interface FamilyCheckRequestData {
+  familyGroupId?: string;
+  groupId?: string;
+  requestedByUid?: string;
+  requesterUid?: string;
+  requestedByName?: string;
+  requesterName?: string;
+  status?: string;
+  createdAt?: number | admin.firestore.Timestamp;
+}
+
 const FCM_BATCH_SIZE = 500;
 
 // ─────────────────────────────────────────────────────────────
@@ -331,6 +342,123 @@ export const sendAnnouncementPush = onDocumentCreated(
       announcementId,
       targetAudience,
       tokenCount,
+      successCount,
+      failureCount,
+    });
+  },
+);
+
+async function sendFamilyCheckRequestToTokens(
+  tokens: string[],
+  title: string,
+  body: string,
+  requestId: string,
+  familyGroupId: string,
+  requestedByUid: string,
+  requestedByName: string,
+  createdAt: string,
+): Promise<{ successCount: number; failureCount: number }> {
+  const messaging = admin.messaging();
+  let successCount = 0;
+  let failureCount = 0;
+
+  for (let offset = 0; offset < tokens.length; offset += FCM_BATCH_SIZE) {
+    const batch = tokens.slice(offset, offset + FCM_BATCH_SIZE);
+
+    try {
+      const response = await messaging.sendEachForMulticast({
+        tokens: batch,
+        notification: { title, body },
+        data: {
+          type: "family_check_request",
+          familyGroupId,
+          requestedByUid,
+          requestedByName,
+          createdAt,
+          requestId,
+          source: "KALKAN",
+        },
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "kalkan_alerts",
+            clickAction: "com.zgrcan.kalkan.NOTIFICATION_CLICK",
+          },
+        },
+      });
+
+      successCount += response.successCount;
+      failureCount += response.failureCount;
+    } catch (error) {
+      failureCount += batch.length;
+      logger.error("Family check request multicast batch failed", {
+        requestId,
+        batchSize: batch.length,
+        error,
+      });
+    }
+  }
+
+  return { successCount, failureCount };
+}
+
+export const sendFamilyCheckRequestPush = onDocumentCreated(
+  "family_check_requests/{requestId}",
+  async (event) => {
+    const requestId = event.params.requestId;
+    const snapshot = event.data;
+
+    if (!snapshot) {
+      logger.warn("Family check request snapshot missing", { requestId });
+      return;
+    }
+
+    const data = snapshot.data() as FamilyCheckRequestData;
+    const status = (data.status ?? "sent").trim();
+    if (status !== "sent") {
+      logger.info("Family check request skipped: status is not sent", { requestId, status });
+      return;
+    }
+
+    const familyGroupId = (data.familyGroupId ?? data.groupId ?? "").trim();
+    const requestedByUid = (data.requestedByUid ?? data.requesterUid ?? "").trim();
+    const requestedByName = safeUserName(data.requestedByName ?? data.requesterName);
+
+    if (!familyGroupId || !requestedByUid) {
+      logger.warn("Family check request skipped: missing group or requester", { requestId });
+      return;
+    }
+
+    const tokens = await collectFamilyTokens(familyGroupId, requestedByUid);
+    if (tokens.length === 0) {
+      logger.info("Family check request skipped: no eligible tokens", {
+        requestId,
+        familyGroupId,
+        requestedByUid,
+      });
+      return;
+    }
+
+    const title = "Aile Durum Kontrolü";
+    const body = `${requestedByName}, güvenlik durumunuzu paylaşmanızı istiyor.`;
+    const createdAt = nowIso();
+
+    const { successCount, failureCount } = await sendFamilyCheckRequestToTokens(
+      tokens,
+      title,
+      body,
+      requestId,
+      familyGroupId,
+      requestedByUid,
+      requestedByName,
+      createdAt,
+    );
+
+    logger.info("Family check request push completed", {
+      requestId,
+      familyGroupId,
+      requestedByUid,
+      tokenCount: tokens.length,
       successCount,
       failureCount,
     });

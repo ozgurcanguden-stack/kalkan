@@ -315,11 +315,13 @@ class FamilyGroupViewModel @Inject constructor(
                         }
                     }
                 }
-                .onFailure {
+                .onFailure { error ->
+                    val message = error.localizedMessage?.takeIf { it.isNotBlank() }
+                        ?: "Durum kontrol isteği gönderilemedi. Lütfen tekrar deneyin."
                     _uiState.update {
                         it.copy(
                             isActionLoading = false,
-                            error = "Durum kontrol isteği gönderilemedi. Lütfen tekrar deneyin.",
+                            error = message,
                         )
                     }
                 }
